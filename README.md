@@ -1,2 +1,2 @@
 # Chess in Vite + React
-[Try me!](chess.george.richmnd.uk)
+[Try me!](https://chess.george.richmnd.uk)
