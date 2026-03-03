@@ -342,6 +342,72 @@ std::vector<Move> MoveGenerator::generateMoves(
                     allMoves.push_back(move);
                 }
             }
+            
+            // Add castling moves for the king
+            if (piece.type == PieceType::KING && !isKingInCheck(board, color)) {
+                int homeRow = (color == Color::WHITE) ? 0 : 7;
+                
+                // King-side castling
+                if (color == Color::WHITE && castling.whiteKingSide) {
+                    if (board.isEmpty(Position(homeRow, 5)) && 
+                        board.isEmpty(Position(homeRow, 6))) {
+                        // Check if squares king passes through are not under attack
+                        Move testMove1(Position(homeRow, 4), Position(homeRow, 5), piece);
+                        Move testMove2(Position(homeRow, 4), Position(homeRow, 6), piece);
+                        
+                        if (!wouldMoveResultInCheck(board, testMove1) && 
+                            !wouldMoveResultInCheck(board, testMove2)) {
+                            Move castleMove(Position(homeRow, 4), Position(homeRow, 6), piece);
+                            castleMove.isCastling = true;
+                            allMoves.push_back(castleMove);
+                        }
+                    }
+                } else if (color == Color::BLACK && castling.blackKingSide) {
+                    if (board.isEmpty(Position(homeRow, 5)) && 
+                        board.isEmpty(Position(homeRow, 6))) {
+                        Move testMove1(Position(homeRow, 4), Position(homeRow, 5), piece);
+                        Move testMove2(Position(homeRow, 4), Position(homeRow, 6), piece);
+                        
+                        if (!wouldMoveResultInCheck(board, testMove1) && 
+                            !wouldMoveResultInCheck(board, testMove2)) {
+                            Move castleMove(Position(homeRow, 4), Position(homeRow, 6), piece);
+                            castleMove.isCastling = true;
+                            allMoves.push_back(castleMove);
+                        }
+                    }
+                }
+                
+                // Queen-side castling
+                if (color == Color::WHITE && castling.whiteQueenSide) {
+                    if (board.isEmpty(Position(homeRow, 1)) && 
+                        board.isEmpty(Position(homeRow, 2)) && 
+                        board.isEmpty(Position(homeRow, 3))) {
+                        Move testMove1(Position(homeRow, 4), Position(homeRow, 3), piece);
+                        Move testMove2(Position(homeRow, 4), Position(homeRow, 2), piece);
+                        
+                        if (!wouldMoveResultInCheck(board, testMove1) && 
+                            !wouldMoveResultInCheck(board, testMove2)) {
+                            Move castleMove(Position(homeRow, 4), Position(homeRow, 2), piece);
+                            castleMove.isCastling = true;
+                            allMoves.push_back(castleMove);
+                        }
+                    }
+                } else if (color == Color::BLACK && castling.blackQueenSide) {
+                    if (board.isEmpty(Position(homeRow, 1)) && 
+                        board.isEmpty(Position(homeRow, 2)) && 
+                        board.isEmpty(Position(homeRow, 3))) {
+                        Move testMove1(Position(homeRow, 4), Position(homeRow, 3), piece);
+                        Move testMove2(Position(homeRow, 4), Position(homeRow, 2), piece);
+                        
+                        if (!wouldMoveResultInCheck(board, testMove1) && 
+                            !wouldMoveResultInCheck(board, testMove2)) {
+                            Move castleMove(Position(homeRow, 4), Position(homeRow, 2), piece);
+                            castleMove.isCastling = true;
+                            allMoves.push_back(castleMove);
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -407,10 +473,24 @@ int Evaluator::evaluate(const Board& board, Color aiColor) {
 }
 
 // MinimaxEngine implementation
-MinimaxEngine::MinimaxEngine(int depth) : depth_(depth) {}
+MinimaxEngine::MinimaxEngine(int depth) : depth_(depth), maxTime_(0), timeExpired_(false) {}
 
 void MinimaxEngine::setDepth(int depth) {
     depth_ = depth;
+}
+
+void MinimaxEngine::setMaxTime(int milliseconds) {
+    maxTime_ = milliseconds;
+}
+
+bool MinimaxEngine::isTimeExpired() const {
+    if (maxTime_ <= 0) return false; // No time limit
+    
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - searchStartTime_
+    ).count();
+    
+    return elapsed >= maxTime_;
 }
 
 CastlingRights MinimaxEngine::updateCastlingRights(
@@ -446,6 +526,12 @@ CastlingRights MinimaxEngine::updateCastlingRights(
 int MinimaxEngine::minimax(const Board& board, Color currentColor, int depth,
                           bool maximizing, int alpha, int beta,
                           const CastlingRights& castling) {
+    
+    // Check time limit
+    if (isTimeExpired()) {
+        timeExpired_ = true;
+        return Evaluator::evaluate(board, rootColor_);
+    }
     
     if (depth == 0) {
         return Evaluator::evaluate(board, rootColor_);
@@ -504,6 +590,8 @@ int MinimaxEngine::minimax(const Board& board, Color currentColor, int depth,
 
 Move MinimaxEngine::findBestMove(const Board& board, Color color, const CastlingRights& castling) {
     rootColor_ = color;
+    timeExpired_ = false;
+    searchStartTime_ = std::chrono::steady_clock::now();
     
     std::vector<Move> moves = MoveGenerator::generateMoves(board, color, castling);
     

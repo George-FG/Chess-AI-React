@@ -65,8 +65,8 @@ const ENGINE_VERSIONS = [
   { 
     version: "v2" as EngineVersion, 
     name: "Minimax v2",
-    description: "Coming soon - Advanced evaluation",
-    available: false
+    description: "Phase-based evaluation: opening, midgame, endgame with checkmate detection",
+    available: true
   },
   { 
     version: "v3" as EngineVersion, 

@@ -480,16 +480,20 @@ export const useChessGame = (options: GameOptions) => {
     }
     const aiSettings = gameState.currentPlayer === 'white' ? options.whiteAI : options.blackAI;
     const depth = aiSettings?.depth ?? 3;
+    const engineVersion = aiSettings?.engineVersion ?? 'v1';
+    const maxTime = aiSettings?.maxTime ?? 0;
     const currentBoard = gameState.board;
     const currentPlayer = gameState.currentPlayer;
     const castlingRights = gameState.castlingRights;
     
     try {
-      // Use the C++ WebAssembly engine (Minimax v1)
+      // Use the C++ WebAssembly engine
       const bestMove = await findBestMoveWasm({
         board: currentBoard,
         color: currentPlayer,
         depth,
+        maxTime,
+        engineVersion,
         castlingRights
       });
 
@@ -680,8 +684,8 @@ export const useChessGame = (options: GameOptions) => {
     let pgn = `[Event "Chess Game"]\n`;
     pgn += `[Site "Custom Chess App"]\n`;
     pgn += `[Date "${date}"]\n`;
-    pgn += `[White "${options.whitePlayer === 'human' ? 'Human' : 'AI (' + (options.whiteAI?.evaluation || 'balanced') + ')'}" ]\n`;
-    pgn += `[Black "${options.blackPlayer === 'human' ? 'Human' : 'AI (' + (options.blackAI?.evaluation || 'balanced') + ')'}" ]\n`;
+    pgn += `[White "${options.whitePlayer === 'human' ? 'Human' : 'AI (' + (options.whiteAI?.engineVersion || 'v1') + ')'}" ]\n`;
+    pgn += `[Black "${options.blackPlayer === 'human' ? 'Human' : 'AI (' + (options.blackAI?.engineVersion || 'v1') + ')'}" ]\n`;
     
     let result = '*';
     if (gameState.isCheckmate) {

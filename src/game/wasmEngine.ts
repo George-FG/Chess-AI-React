@@ -1,12 +1,5 @@
 import type { Board, PieceColor, Move, PieceType } from './types';
 
-// Extend Window interface for the global ChessEngineModule
-declare global {
-  interface Window {
-    ChessEngineModule?: () => Promise<ChessEngineModule>;
-  }
-}
-
 // TypeScript declarations for the WebAssembly module
 
 interface BoardSquare {
@@ -14,119 +7,80 @@ interface BoardSquare {
   color: string;
 }
 
-interface WasmPosition {
-  row: number;
-  col: number;
-}
-
-interface WasmPiece {
-  type: string;
-  color: string;
-}
-
-interface WasmMove {
-  from: WasmPosition;
-  to: WasmPosition;
-  piece: WasmPiece;
-  captured?: WasmPiece;
-  promotion?: string;
-}
-
-interface ChessEngineInstance {
-  setDepth(depth: number): void;
-  setBoardFromArray(boardArray: (BoardSquare | null)[]): void;
-  setCastlingRights(
-    whiteKingSide: boolean,
-    whiteQueenSide: boolean,
-    blackKingSide: boolean,
-    blackQueenSide: boolean
-  ): void;
-  findBestMove(color: string): WasmMove;
-  initializeStandardPosition(): void;
-  delete(): void;
-}
-
-interface ChessEngineClass {
-  new(): ChessEngineInstance;
-  new(depth: number): ChessEngineInstance;
-}
-
-interface ChessEngineModule {
-  ChessEngine: ChessEngineClass;
-}
-
-// Singleton to hold the loaded WebAssembly module
-let wasmModule: ChessEngineModule | null = null;
-let moduleLoadPromise: Promise<ChessEngineModule> | null = null;
+// Worker management
+let engineWorker: Worker | null = null;
+let nextRequestId = 1;
+const pendingRequests = new Map<number, {
+  resolve: (move: Move | null) => void;
+  reject: (error: Error) => void;
+}>();
 
 /**
- * Load the WebAssembly chess engine module
+ * Initialize the chess engine worker
  */
-export async function loadChessEngine(): Promise<ChessEngineModule> {
-  if (wasmModule) {
-    return wasmModule;
-  }
-
-  if (moduleLoadPromise) {
-    return moduleLoadPromise;
-  }
-
-  moduleLoadPromise = (async () => {
-    try {
-      // Load the WebAssembly module from public directory
-      // Check if already loaded
-      if (!window.ChessEngineModule) {
-        // Check if script is already in the DOM
-        const existingScript = document.querySelector('script[src="/chess-engine.js"]');
-        
-        if (!existingScript) {
-          const script = document.createElement('script');
-          script.src = '/chess-engine.js';
-          
-          // Wait for the script to load and the module factory to be available
-          await new Promise<void>((resolve, reject) => {
-            script.onload = () => resolve();
-            script.onerror = () => reject(new Error('Failed to load chess-engine.js'));
-            document.head.appendChild(script);
-          });
-        } else {
-          // Script exists but might still be loading
-          await new Promise<void>((resolve) => {
-            const checkInterval = setInterval(() => {
-              if (window.ChessEngineModule) {
-                clearInterval(checkInterval);
-                resolve();
-              }
-            }, 50);
-            // Timeout after 5 seconds
-            setTimeout(() => {
-              clearInterval(checkInterval);
-              resolve();
-            }, 5000);
-          });
-        }
+function getWorker(): Worker {
+  if (!engineWorker) {
+    // Create the worker as a module worker
+    engineWorker = new Worker(
+      new URL('./chessEngineWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    
+    // Handle messages from the worker
+    engineWorker.addEventListener('message', (event) => {
+      const response = event.data;
+      
+      // Skip ready message
+      if (response.type === 'ready') {
+        console.log('✓ Chess Engine worker ready');
+        return;
       }
       
-      // The Emscripten module should now be available
-      const factory = window.ChessEngineModule;
+      // Handle move response
+      const pending = pendingRequests.get(response.id);
+      if (!pending) return;
       
-      if (!factory) {
-        throw new Error('ChessEngineModule not found');
+      pendingRequests.delete(response.id);
+      
+      if (response.success && response.move) {
+        // Convert the result to our Move type
+        const move: Move = {
+          from: {
+            row: response.move.from.row,
+            col: response.move.from.col
+          },
+          to: {
+            row: response.move.to.row,
+            col: response.move.to.col
+          },
+          piece: {
+            type: response.move.piece.type as PieceType,
+            color: response.move.piece.color as PieceColor
+          },
+          captured: response.move.captured ? {
+            type: response.move.captured.type as PieceType,
+            color: response.move.captured.color as PieceColor
+          } : undefined,
+          promotion: response.move.promotion ? response.move.promotion as PieceType : undefined
+        };
+        pending.resolve(move);
+      } else {
+        pending.reject(new Error(response.error || 'Failed to find best move'));
       }
-      
-      // Initialize the module
-      wasmModule = await factory();
-      
-      console.log('✓ Chess Engine WebAssembly module loaded successfully');
-      return wasmModule as ChessEngineModule;
-    } catch (error) {
-      console.warn('Chess Engine WebAssembly module not available:', error);
-      console.warn('The C++ engine needs to be built. See Engine/README.md for instructions.');
-      throw new Error('WASM_NOT_AVAILABLE');
-    }
-  })();
-
-  return moduleLoadPromise;
+    });
+    
+    // Handle worker errors
+    engineWorker.addEventListener('error', (error) => {
+      console.error('Chess Engine worker error:', error);
+      // Reject all pending requests
+      pendingRequests.forEach(({ reject }) => {
+        reject(new Error('Worker error'));
+      });
+      pendingRequests.clear();
+    });
+  }
+  
+  return engineWorker;
 }
 
 /**
@@ -159,6 +113,8 @@ export interface BestMoveRequest {
   board: Board;
   color: PieceColor;
   depth: number;
+  maxTime?: number; // Max time in milliseconds (0 = no limit)
+  engineVersion?: 'v1' | 'v2' | 'v3'; // Added engine version
   castlingRights: {
     whiteKingSide: boolean;
     whiteQueenSide: boolean;
@@ -168,65 +124,57 @@ export interface BestMoveRequest {
 }
 
 /**
- * Find the best move using the C++ WebAssembly engine
+ * Find the best move using the C++ WebAssembly engine (running in a worker)
  */
 export async function findBestMoveWasm(request: BestMoveRequest): Promise<Move | null> {
   try {
-    // Load the WebAssembly module if not already loaded
-    const module = await loadChessEngine();
+    const worker = getWorker();
     
-    // Create a new engine instance
-    const engine = new module.ChessEngine(request.depth);
+    // Convert board to array format
+    const boardArray = boardToArray(request.board);
     
-    try {
-      // Convert board to array format
-      const boardArray = boardToArray(request.board);
+    // Create a unique request ID
+    const requestId = nextRequestId++;
+    
+    // Create a promise that will be resolved when the worker responds
+    const promise = new Promise<Move | null>((resolve, reject) => {
+      pendingRequests.set(requestId, { resolve, reject });
       
-      // Set the board state
-      engine.setBoardFromArray(boardArray);
+      // Set a timeout to prevent hanging forever
+      const timeout = setTimeout(() => {
+        pendingRequests.delete(requestId);
+        reject(new Error('Worker request timeout'));
+      }, (request.maxTime || 30000) + 5000); // Add 5s buffer to maxTime
       
-      // Set castling rights
-      engine.setCastlingRights(
-        request.castlingRights.whiteKingSide,
-        request.castlingRights.whiteQueenSide,
-        request.castlingRights.blackKingSide,
-        request.castlingRights.blackQueenSide
-      );
+      // Clear timeout when promise resolves/rejects
+      const originalResolve = resolve;
+      const originalReject = reject;
       
-      // Find the best move
-      const result = engine.findBestMove(request.color);
-      
-      // Check if we got a valid move
-      if (!result || !result.from || !result.to || !result.piece) {
-        return null;
-      }
-      
-      // Convert the result to our Move type
-      const move: Move = {
-        from: {
-          row: result.from.row,
-          col: result.from.col
+      pendingRequests.set(requestId, {
+        resolve: (move) => {
+          clearTimeout(timeout);
+          originalResolve(move);
         },
-        to: {
-          row: result.to.row,
-          col: result.to.col
-        },
-        piece: {
-          type: result.piece.type as PieceType,
-          color: result.piece.color as PieceColor
-        },
-        captured: result.captured ? {
-          type: result.captured.type as PieceType,
-          color: result.captured.color as PieceColor
-        } : undefined,
-        promotion: result.promotion ? result.promotion as PieceType : undefined
-      };
-      
-      return move;
-    } finally {
-      // Clean up the engine instance
-      engine.delete();
-    }
+        reject: (error) => {
+          clearTimeout(timeout);
+          originalReject(error);
+        }
+      });
+    });
+    
+    // Send the request to the worker
+    worker.postMessage({
+      id: requestId,
+      type: 'findBestMove',
+      board: boardArray,
+      color: request.color,
+      depth: request.depth,
+      maxTime: request.maxTime,
+      engineVersion: request.engineVersion || 'v1',
+      castlingRights: request.castlingRights
+    });
+    
+    return await promise;
   } catch (error) {
     console.error('Error in findBestMoveWasm:', error);
     return null;

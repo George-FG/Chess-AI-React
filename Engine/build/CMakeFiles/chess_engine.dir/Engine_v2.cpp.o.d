@@ -1,5 +1,6 @@
-CMakeFiles/chess_engine.dir/Engine.cpp.o: \
-  /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/Engine.cpp \
+CMakeFiles/chess_engine.dir/Engine_v2.cpp.o: \
+  /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/Engine_v2.cpp \
+  /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/Engine_v2.h \
   /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/Engine.h \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/vector \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__config \

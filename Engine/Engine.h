@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <chrono>
 
 namespace Chess {
 
@@ -82,6 +83,7 @@ struct CastlingRights {
 class Board {
 public:
     Piece squares[8][8];
+    Move* lastMove; // For en passant detection, nullptr if no previous move
     
     Board();
     void initializeStandardPosition();
@@ -126,11 +128,16 @@ public:
     
     Move findBestMove(const Board& board, Color color, const CastlingRights& castling);
     void setDepth(int depth);
+    void setMaxTime(int milliseconds); // 0 = no limit
     
 private:
     int depth_;
+    int maxTime_; // in milliseconds
     Color rootColor_;
+    std::chrono::steady_clock::time_point searchStartTime_;
+    bool timeExpired_;
     
+    bool isTimeExpired() const;
     int minimax(const Board& board, Color currentColor, int depth, bool maximizing,
                 int alpha, int beta, const CastlingRights& castling);
     CastlingRights updateCastlingRights(const CastlingRights& rights, const Move& move, 

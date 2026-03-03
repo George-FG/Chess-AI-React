@@ -153,6 +153,30 @@ Engine.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/chess_engine.dir/build.make CMakeFiles/chess_engine.dir/Engine.cpp.s
 .PHONY : Engine.cpp.s
 
+Engine_v2.o: Engine_v2.cpp.o
+.PHONY : Engine_v2.o
+
+# target to build an object file
+Engine_v2.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/chess_engine.dir/build.make CMakeFiles/chess_engine.dir/Engine_v2.cpp.o
+.PHONY : Engine_v2.cpp.o
+
+Engine_v2.i: Engine_v2.cpp.i
+.PHONY : Engine_v2.i
+
+# target to preprocess a source file
+Engine_v2.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/chess_engine.dir/build.make CMakeFiles/chess_engine.dir/Engine_v2.cpp.i
+.PHONY : Engine_v2.cpp.i
+
+Engine_v2.s: Engine_v2.cpp.s
+.PHONY : Engine_v2.s
+
+# target to generate assembly for a file
+Engine_v2.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/chess_engine.dir/build.make CMakeFiles/chess_engine.dir/Engine_v2.cpp.s
+.PHONY : Engine_v2.cpp.s
+
 bridge.o: bridge.cpp.o
 .PHONY : bridge.o
 
@@ -189,6 +213,9 @@ help:
 	@echo "... Engine.o"
 	@echo "... Engine.i"
 	@echo "... Engine.s"
+	@echo "... Engine_v2.o"
+	@echo "... Engine_v2.i"
+	@echo "... Engine_v2.s"
 	@echo "... bridge.o"
 	@echo "... bridge.i"
 	@echo "... bridge.s"

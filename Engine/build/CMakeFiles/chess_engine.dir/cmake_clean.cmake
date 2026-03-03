@@ -3,6 +3,8 @@ file(REMOVE_RECURSE
   "/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/public/chess-engine.pdb"
   "CMakeFiles/chess_engine.dir/Engine.cpp.o"
   "CMakeFiles/chess_engine.dir/Engine.cpp.o.d"
+  "CMakeFiles/chess_engine.dir/Engine_v2.cpp.o"
+  "CMakeFiles/chess_engine.dir/Engine_v2.cpp.o.d"
   "CMakeFiles/chess_engine.dir/bridge.cpp.o"
   "CMakeFiles/chess_engine.dir/bridge.cpp.o.d"
 )
