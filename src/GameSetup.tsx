@@ -3,8 +3,12 @@ import "./GameSetup.css";
 
 export type PlayerType = "human" | "ai";
 
+export type EngineVersion = "v1" | "v2" | "v3";
+
 export interface AISettings {
+  engineVersion: EngineVersion;
   depth: number;
+  maxTime: number; // in milliseconds
 }
 
 export interface GameSetupOptions {
@@ -40,11 +44,47 @@ const CLOCK_TIME_OPTIONS = [
   { label: "30 minutes", value: 1800 },
 ];
 
+const MAX_TIME_OPTIONS = [
+  { label: "1 second", value: 1000 },
+  { label: "2 seconds", value: 2000 },
+  { label: "3 seconds", value: 3000 },
+  { label: "5 seconds", value: 5000 },
+  { label: "10 seconds", value: 10000 },
+  { label: "15 seconds", value: 15000 },
+  { label: "30 seconds", value: 30000 },
+  { label: "No limit", value: 0 },
+];
+
+const ENGINE_VERSIONS = [
+  { 
+    version: "v1" as EngineVersion, 
+    name: "Minimax v1",
+    description: "Alpha-beta pruning with material + positional evaluation",
+    available: true
+  },
+  { 
+    version: "v2" as EngineVersion, 
+    name: "Minimax v2",
+    description: "Coming soon - Advanced evaluation",
+    available: false
+  },
+  { 
+    version: "v3" as EngineVersion, 
+    name: "Minimax v3",
+    description: "Coming soon - Neural network",
+    available: false
+  },
+];
+
 const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
   const [whitePlayer, setWhitePlayer] = useState<PlayerType>("human");
   const [blackPlayer, setBlackPlayer] = useState<PlayerType>("ai");
+  const [whiteAIEngine, setWhiteAIEngine] = useState<EngineVersion>("v1");
+  const [blackAIEngine, setBlackAIEngine] = useState<EngineVersion>("v1");
   const [whiteAIDepth, setWhiteAIDepth] = useState<number>(3);
   const [blackAIDepth, setBlackAIDepth] = useState<number>(3);
+  const [whiteAIMaxTime, setWhiteAIMaxTime] = useState<number>(5000);
+  const [blackAIMaxTime, setBlackAIMaxTime] = useState<number>(5000);
   const [clockEnabled, setClockEnabled] = useState<boolean>(false);
   const [initialTime, setInitialTime] = useState<number>(900);
 
@@ -52,8 +92,16 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
     onStartGame({
       whitePlayer,
       blackPlayer,
-      whiteAI: whitePlayer === "ai" ? { depth: whiteAIDepth } : undefined,
-      blackAI: blackPlayer === "ai" ? { depth: blackAIDepth } : undefined,
+      whiteAI: whitePlayer === "ai" ? { 
+        engineVersion: whiteAIEngine,
+        depth: whiteAIDepth,
+        maxTime: whiteAIMaxTime
+      } : undefined,
+      blackAI: blackPlayer === "ai" ? { 
+        engineVersion: blackAIEngine,
+        depth: blackAIDepth,
+        maxTime: blackAIMaxTime
+      } : undefined,
       clockEnabled,
       initialTime,
     });
@@ -121,57 +169,140 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
         </div>
 
         {(whitePlayer === "ai" || blackPlayer === "ai") && (
-          <div className="ai-settings-container">
-            <div className="ai-info-banner">
-              <h3>🤖 AI Engine: Minimax v1</h3>
-              <p>C++ WebAssembly powered chess engine with alpha-beta pruning</p>
+          <div className="ai-section">
+            <div className="ai-settings-grid">
+              {whitePlayer === "ai" && (
+                <div className="ai-settings">
+                  <div className="ai-header">
+                    <h2>⚪ White AI</h2>
+                  </div>
+                  
+                  <div className="ai-setting-group">
+                    <label>Engine Version</label>
+                    <select
+                      value={whiteAIEngine}
+                      onChange={(e) => setWhiteAIEngine(e.target.value as EngineVersion)}
+                      className="engine-select"
+                    >
+                      {ENGINE_VERSIONS.map((engine) => (
+                        <option 
+                          key={engine.version} 
+                          value={engine.version}
+                          disabled={!engine.available}
+                        >
+                          {engine.name} {!engine.available && "🔒"}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="engine-description">
+                      {ENGINE_VERSIONS.find(e => e.version === whiteAIEngine)?.description}
+                    </small>
+                  </div>
+
+                  <div className="ai-setting-group">
+                    <label>Difficulty (Search Depth)</label>
+                    <select
+                      value={whiteAIDepth}
+                      onChange={(e) => setWhiteAIDepth(Number(e.target.value))}
+                      className="depth-select"
+                    >
+                      {DEPTH_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="help-text">
+                      Higher depth = stronger AI but slower moves
+                    </small>
+                  </div>
+
+                  <div className="ai-setting-group">
+                    <label>Max Move Time</label>
+                    <select
+                      value={whiteAIMaxTime}
+                      onChange={(e) => setWhiteAIMaxTime(Number(e.target.value))}
+                      className="time-select"
+                    >
+                      {MAX_TIME_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="help-text">
+                      Maximum time AI can spend per move
+                    </small>
+                  </div>
+                </div>
+              )}
+
+              {blackPlayer === "ai" && (
+                <div className="ai-settings">
+                  <div className="ai-header">
+                    <h2>⚫ Black AI</h2>
+                  </div>
+                  
+                  <div className="ai-setting-group">
+                    <label>Engine Version</label>
+                    <select
+                      value={blackAIEngine}
+                      onChange={(e) => setBlackAIEngine(e.target.value as EngineVersion)}
+                      className="engine-select"
+                    >
+                      {ENGINE_VERSIONS.map((engine) => (
+                        <option 
+                          key={engine.version} 
+                          value={engine.version}
+                          disabled={!engine.available}
+                        >
+                          {engine.name} {!engine.available && "🔒"}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="engine-description">
+                      {ENGINE_VERSIONS.find(e => e.version === blackAIEngine)?.description}
+                    </small>
+                  </div>
+
+                  <div className="ai-setting-group">
+                    <label>Difficulty (Search Depth)</label>
+                    <select
+                      value={blackAIDepth}
+                      onChange={(e) => setBlackAIDepth(Number(e.target.value))}
+                      className="depth-select"
+                    >
+                      {DEPTH_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="help-text">
+                      Higher depth = stronger AI but slower moves
+                    </small>
+                  </div>
+
+                  <div className="ai-setting-group">
+                    <label>Max Move Time</label>
+                    <select
+                      value={blackAIMaxTime}
+                      onChange={(e) => setBlackAIMaxTime(Number(e.target.value))}
+                      className="time-select"
+                    >
+                      {MAX_TIME_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="help-text">
+                      Maximum time AI can spend per move
+                    </small>
+                  </div>
+                </div>
+              )}
             </div>
-
-            {whitePlayer === "ai" && (
-              <div className="ai-settings">
-                <h2>White AI Settings</h2>
-                <div className="ai-setting-group">
-                  <label>Difficulty (Search Depth)</label>
-                  <select
-                    value={whiteAIDepth}
-                    onChange={(e) => setWhiteAIDepth(Number(e.target.value))}
-                    className="depth-select"
-                  >
-                    {DEPTH_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <small className="help-text">
-                    Higher depth = stronger AI but slower moves
-                  </small>
-                </div>
-              </div>
-            )}
-
-            {blackPlayer === "ai" && (
-              <div className="ai-settings">
-                <h2>Black AI Settings</h2>
-                <div className="ai-setting-group">
-                  <label>Difficulty (Search Depth)</label>
-                  <select
-                    value={blackAIDepth}
-                    onChange={(e) => setBlackAIDepth(Number(e.target.value))}
-                    className="depth-select"
-                  >
-                    {DEPTH_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <small className="help-text">
-                    Higher depth = stronger AI but slower moves
-                  </small>
-                </div>
-              </div>
-            )}
           </div>
         )}
 

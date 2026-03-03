@@ -6,8 +6,12 @@ import { findBestMoveWasm } from './wasmEngine';
 
 export type PlayerType = 'human' | 'ai';
 
+export type EngineVersion = 'v1' | 'v2' | 'v3';
+
 export interface AISettings {
+  engineVersion: EngineVersion;
   depth: number;
+  maxTime: number; // in milliseconds
 }
 
 export interface GameOptions {
