@@ -1,0 +1,3 @@
+/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/build/CMakeFiles/chess_engine.dir
+/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/build/CMakeFiles/edit_cache.dir
+/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/build/CMakeFiles/rebuild_cache.dir

@@ -2,14 +2,12 @@ import { useState, useCallback, useEffect } from 'react';
 import type { GameState, Position, Move, Board, PieceType, PieceColor } from './types';
 import { createInitialBoard } from './initialBoard';
 import { getValidMoves, isPositionEqual, isKingInCheck, wouldMoveResultInCheck, getCastlingMoves } from './moveValidation';
-import { runMinimaxInWorker, type EvaluationType } from './minimaxWorkerLoader';
+import { findBestMoveWasm } from './wasmEngine';
 
 export type PlayerType = 'human' | 'ai';
 
 export interface AISettings {
   depth: number;
-  maxTime: number;
-  evaluation: EvaluationType;
 }
 
 export interface GameOptions {
@@ -477,64 +475,36 @@ export const useChessGame = (options: GameOptions) => {
       setGameStarted(true);
     }
     const aiSettings = gameState.currentPlayer === 'white' ? options.whiteAI : options.blackAI;
-    const depth = aiSettings?.depth ?? 2;
-    const maxTime = aiSettings?.maxTime ?? 5000;
-    const evaluation = aiSettings?.evaluation ?? 'balanced';
+    const depth = aiSettings?.depth ?? 3;
     const currentBoard = gameState.board;
     const currentPlayer = gameState.currentPlayer;
     const castlingRights = gameState.castlingRights;
     
-    // Build position history for repetition detection
-    const positionHistory: string[] = [];
-    const boardToString = (board: Board) =>
-      board.map(row => row.map(cell => cell ? cell.type + cell.color[0] : '.').join('')).join('/');
-    
-    // Add all previous positions from move history
-    const tempBoard = createInitialBoard();
-    positionHistory.push(boardToString(tempBoard));
-    
-    for (const move of gameState.moveHistory) {
-      const piece = tempBoard[move.from.row][move.from.col];
-      if (!piece) continue;
-      
-      tempBoard[move.to.row][move.to.col] = move.promotion ? { type: move.promotion, color: piece.color } : piece;
-      tempBoard[move.from.row][move.from.col] = null;
-      
-      if (move.isCastling) {
-        if (move.to.col === 5) {
-          const rook = tempBoard[move.from.row][7];
-          tempBoard[move.from.row][4] = rook;
-          tempBoard[move.from.row][7] = null;
-        } else if (move.to.col === 1) {
-          const rook = tempBoard[move.from.row][0];
-          tempBoard[move.from.row][2] = rook;
-          tempBoard[move.from.row][0] = null;
-        }
-      }
-      
-      if (move.isEnPassant) {
-        const capturedPawnRow = move.from.row;
-        tempBoard[capturedPawnRow][move.to.col] = null;
-      }
-      
-      positionHistory.push(boardToString(tempBoard));
-    }
-    
-    // Use a real Web Worker for AI
-    const bestMove = await runMinimaxInWorker({ board: currentBoard, color: currentPlayer, depth, maxTime, evaluation, castlingRights, positionHistory });
-
-    if (bestMove) {
-      setGameState(current => {
-        // Only make the move if it's still this player's turn (prevents double moves)
-        if (current.currentPlayer !== currentPlayer) {
-          return current;
-        }
-        const newState = makeMove(current, bestMove.from, bestMove.to);
-
-        return { ...newState, lastMoveTime: Date.now() };
+    try {
+      // Use the C++ WebAssembly engine (Minimax v1)
+      const bestMove = await findBestMoveWasm({
+        board: currentBoard,
+        color: currentPlayer,
+        depth,
+        castlingRights
       });
+
+      if (bestMove) {
+        setGameState(current => {
+          // Only make the move if it's still this player's turn (prevents double moves)
+          if (current.currentPlayer !== currentPlayer) {
+            return current;
+          }
+          const newState = makeMove(current, bestMove.from, bestMove.to);
+
+          return { ...newState, lastMoveTime: Date.now() };
+        });
+      }
+    } catch (error) {
+      console.error('AI move failed:', error);
+      // Could show an error to the user here
     }
-  }, [gameState.currentPlayer, gameState.board, gameState.castlingRights, gameState.moveHistory, options.whitePlayer, options.blackPlayer, options.whiteAI, options.blackAI, gameStarted, makeMove]);
+  }, [gameState.currentPlayer, gameState.board, gameState.castlingRights, options.whitePlayer, options.blackPlayer, options.whiteAI, options.blackAI, gameStarted, makeMove]);
 
   // AI move trigger
   useEffect(() => {

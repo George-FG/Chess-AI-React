@@ -1,0 +1,1 @@
+/opt/homebrew/Cellar/emscripten/5.0.2/libexec/em++ -lembind -O3 -sWASM=1 -sMODULARIZE=1 -sEXPORT_NAME=ChessEngineModule -sALLOW_MEMORY_GROWTH=1 -sENVIRONMENT=web "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']" --bind @CMakeFiles/chess_engine.dir/objects1.rsp -o /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/public/chess-engine.js
