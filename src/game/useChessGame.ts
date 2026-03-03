@@ -498,19 +498,36 @@ export const useChessGame = (options: GameOptions) => {
       });
 
       if (bestMove) {
+        console.log('✓ AI found move:', bestMove);
         setGameState(current => {
           // Only make the move if it's still this player's turn (prevents double moves)
           if (current.currentPlayer !== currentPlayer) {
+            console.log('⚠ Turn changed, skipping move');
             return current;
           }
           const newState = makeMove(current, bestMove.from, bestMove.to);
-
+          console.log('✓ Move applied, new player:', newState.currentPlayer);
           return { ...newState, lastMoveTime: Date.now() };
+        });
+      } else {
+        console.error('✗ No move returned from engine - likely checkmate/stalemate');
+        // Check if game is over
+        setGameState(current => {
+          if (!current.isCheckmate && !current.isStalemate) {
+            // Force a game state check
+            console.log('⚠ Forcing checkmate/stalemate detection');
+            return current; // The next render cycle will detect game over
+          }
+          return current;
         });
       }
     } catch (error) {
-      console.error('AI move failed:', error);
-      // Could show an error to the user here
+      console.error('✗ AI move failed:', error);
+      // Check if this is a no-moves-available error (checkmate/stalemate)
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (errorMsg.includes('No legal moves') || errorMsg.includes('checkmate') || errorMsg.includes('stalemate')) {
+        console.log('Game appears to be over:', errorMsg);
+      }
     }
   }, [gameState.currentPlayer, gameState.board, gameState.castlingRights, options.whitePlayer, options.blackPlayer, options.whiteAI, options.blackAI, gameStarted, makeMove]);
 

@@ -1802,3 +1802,60 @@ events:
         - "/"
       CMAKE_FIND_ROOT_PATH: "/opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot"
 ...
+
+---
+events:
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/homebrew/share/cmake/Modules/Platform/Emscripten.cmake:6 (find_file)"
+      - "/opt/homebrew/share/cmake/Modules/CMakeSystemSpecificInformation.cmake:32 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "file"
+    variable: "_EMSCRIPTEN_PLATFORM_MODULE"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "Platform/Emscripten.cmake"
+    candidate_directories:
+      - "/opt/homebrew/Cellar/emscripten/5.0.2/libexec/cmake/Modules/"
+    searched_directories:
+      - "/opt/homebrew/Cellar/emscripten/5.0.2/libexec/cmake/Modules/Platform.framework/Headers/Emscripten.cmake"
+    found: "/opt/homebrew/Cellar/emscripten/5.0.2/libexec/cmake/Modules/Platform/Emscripten.cmake"
+    search_context:
+      ENV{PATH}:
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Users/gterry/.nvm/versions/node/v24.13.0/bin"
+        - "/Users/gterry/.rbenv/shims"
+        - "/Users/gterry/.rbenv/bin"
+        - "/Users/gterry/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand"
+        - "/Users/gterry/Library/Application Support/Code/User/globalStorage/github.copilot-chat/copilotCli"
+        - "/usr/local/bin"
+        - "/System/Cryptexes/App/usr/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
+        - "/opt/pmk/env/global/bin"
+        - "/Library/Apple/usr/bin"
+        - "/usr/local/munki"
+        - "/Users/gterry/Library/Android/sdk/emulator"
+        - "/Users/gterry/Library/Android/sdk/platform-tools"
+        - "/Users/gterry/Library/Android/sdk/emulator"
+        - "/Users/gterry/Library/Android/sdk/platform-tools"
+      CMAKE_INSTALL_PREFIX: "/opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/"
+      CMAKE_FIND_ROOT_PATH: "/opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot"
+...

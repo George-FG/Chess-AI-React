@@ -43,6 +43,7 @@ function getWorker(): Worker {
       pendingRequests.delete(response.id);
       
       if (response.success && response.move) {
+        console.log('✓ Move received from worker:', response.move);
         // Convert the result to our Move type
         const move: Move = {
           from: {
@@ -65,6 +66,7 @@ function getWorker(): Worker {
         };
         pending.resolve(move);
       } else {
+        console.error('✗ Move failed from worker:', response.error);
         pending.reject(new Error(response.error || 'Failed to find best move'));
       }
     });

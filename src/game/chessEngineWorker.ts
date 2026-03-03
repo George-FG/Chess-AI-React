@@ -186,6 +186,24 @@ self.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
       // Find the best move (this runs in the worker thread)
       const result = engine.findBestMove(request.color);
       
+      console.log('[Worker] findBestMove result:', result);
+      
+      // Check if we got an empty result (no legal moves)
+      if (!result || typeof result !== 'object') {
+        console.error('[Worker] Engine returned no result');
+        throw new Error('No legal moves available (checkmate or stalemate)');
+      }
+      
+      // Validate that we got a valid move with valid positions
+      if (!result.from || !result.to || 
+          result.from.row === undefined || result.from.col === undefined ||
+          result.to.row === undefined || result.to.col === undefined ||
+          result.from.row < 0 || result.from.col < 0 ||
+          result.to.row < 0 || result.to.col < 0) {
+        console.error('[Worker] Invalid move positions:', result);
+        throw new Error('No legal moves available (engine returned invalid positions)');
+      }
+      
       // Send the result back to the main thread
       const response: WorkerResponse = {
         id: request.id,
