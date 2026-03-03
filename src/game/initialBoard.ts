@@ -5,14 +5,14 @@ export const createInitialBoard = (): Board => {
 
   // White pieces (row 0 and 1)
   const backRow: Piece[] = [
-    { type: 'r', color: 'white' },
-    { type: 'n', color: 'white' },
-    { type: 'b', color: 'white' },
-    { type: 'k', color: 'white' },
-    { type: 'q', color: 'white' },
-    { type: 'b', color: 'white' },
-    { type: 'n', color: 'white' },
-    { type: 'r', color: 'white' },
+    { type: 'r', color: 'white' }, // a1
+    { type: 'n', color: 'white' }, // b1
+    { type: 'b', color: 'white' }, // c1
+    { type: 'q', color: 'white' }, // d1 - Queen on d-file
+    { type: 'k', color: 'white' }, // e1 - King on e-file
+    { type: 'b', color: 'white' }, // f1
+    { type: 'n', color: 'white' }, // g1
+    { type: 'r', color: 'white' }, // h1
   ];
 
   backRow.forEach((piece, col) => {
@@ -25,14 +25,14 @@ export const createInitialBoard = (): Board => {
 
   // Black pieces (row 6 and 7)
   const blackBackRow: Piece[] = [
-    { type: 'r', color: 'black' },
-    { type: 'n', color: 'black' },
-    { type: 'b', color: 'black' },
-    { type: 'k', color: 'black' },
-    { type: 'q', color: 'black' },
-    { type: 'b', color: 'black' },
-    { type: 'n', color: 'black' },
-    { type: 'r', color: 'black' },
+    { type: 'r', color: 'black' }, // a8
+    { type: 'n', color: 'black' }, // b8
+    { type: 'b', color: 'black' }, // c8
+    { type: 'q', color: 'black' }, // d8 - Queen on d-file
+    { type: 'k', color: 'black' }, // e8 - King on e-file
+    { type: 'b', color: 'black' }, // f8
+    { type: 'n', color: 'black' }, // g8
+    { type: 'r', color: 'black' }, // h8
   ];
 
   blackBackRow.forEach((piece, col) => {

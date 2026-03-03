@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import type { GameState, Position, Move, Board, PieceType, PieceColor } from './types';
 import { createInitialBoard } from './initialBoard';
 import { getValidMoves, isPositionEqual, isKingInCheck, wouldMoveResultInCheck, getCastlingMoves } from './moveValidation';
-import { findBestMoveWasm } from './wasmEngine';
+import { findBestMoveWasm, clearEngineHistory } from './wasmEngine';
 
 export type PlayerType = 'human' | 'ai';
 
@@ -159,17 +159,15 @@ export const useChessGame = (options: GameOptions) => {
 
     // Handle castling: move the rook
     if (isCastling) {
-      if (to.col === 5) {
-        // King-side castling
+      if (to.col === 6) {
+        // King-side castling: King e1->g1 (col 4->6), Rook h1->f1 (col 7->5)
         const rook = newBoard[from.row][7];
-
-        newBoard[from.row][4] = rook;
+        newBoard[from.row][5] = rook;
         newBoard[from.row][7] = null;
-      } else if (to.col === 1) {
-        // Queen-side castling
+      } else if (to.col === 2) {
+        // Queen-side castling: King e1->c1 (col 4->2), Rook a1->d1 (col 0->3)
         const rook = newBoard[from.row][0];
-
-        newBoard[from.row][2] = rook;
+        newBoard[from.row][3] = rook;
         newBoard[from.row][0] = null;
       }
     }
@@ -441,6 +439,11 @@ export const useChessGame = (options: GameOptions) => {
   }, [gameStarted, makeMove, historyIndex]);
 
   const resetGame = useCallback(() => {
+    // Clear position history in the engine
+    clearEngineHistory().catch(err => {
+      console.error('Failed to clear engine history:', err);
+    });
+    
     setGameState({
       board: createInitialBoard(),
       currentPlayer: 'white',

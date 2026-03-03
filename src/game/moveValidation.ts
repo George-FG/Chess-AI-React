@@ -198,38 +198,38 @@ export const getCastlingMoves = (
   const row = color === 'white' ? 0 : 7;
   const enemyColor: PieceColor = color === 'white' ? 'black' : 'white';
 
-  // King must be on starting position
-  if (from.row !== row || from.col !== 3) return moves;
+  // King must be on starting position (e1/e8 = column 4)
+  if (from.row !== row || from.col !== 4) return moves;
 
   // Cannot castle out of check
   if (isInCheck) return moves;
 
-  // King-side castling
+  // King-side castling (king moves from e to g = col 4 to col 6)
   if (castlingRights.kingSide) {
     const rook = board[row][7];
-    const squaresBetween = [4, 5];
+    const squaresBetween = [5, 6]; // f and g files
     const allClear = squaresBetween.every(col => !board[row][col]);
     const notUnderAttack = squaresBetween.every(
       col => !isPositionUnderAttack(board, { row, col }, enemyColor)
     );
 
     if (rook && rook.type === 'r' && rook.color === color && allClear && notUnderAttack) {
-      moves.push({ row, col: 5 });
+      moves.push({ row, col: 6 }); // King goes to g-file (col 6)
     }
   }
 
-  // Queen-side castling
+  // Queen-side castling (king moves from e to c = col 4 to col 2)
   if (castlingRights.queenSide) {
     const rook = board[row][0];
-    const squaresBetween = [1, 2];
-    const squaresNotUnderAttack = [1, 2];
+    const squaresBetween = [1, 2, 3]; // b, c, d files must be clear
+    const squaresNotUnderAttack = [2, 3]; // c and d files must not be under attack
     const allClear = squaresBetween.every(col => !board[row][col]);
     const notUnderAttack = squaresNotUnderAttack.every(
       col => !isPositionUnderAttack(board, { row, col }, enemyColor)
     );
 
     if (rook && rook.type === 'r' && rook.color === color && allClear && notUnderAttack) {
-      moves.push({ row, col: 1 });
+      moves.push({ row, col: 2 }); // King goes to c-file (col 2)
     }
   }
 

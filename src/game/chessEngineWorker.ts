@@ -22,6 +22,8 @@ interface WasmMove {
   piece: WasmPiece;
   captured?: WasmPiece;
   promotion?: string;
+  isCastling?: boolean;
+  isEnPassant?: boolean;
 }
 
 interface ChessEngineInstance {
@@ -36,6 +38,7 @@ interface ChessEngineInstance {
   ): void;
   findBestMove(color: string): WasmMove;
   initializeStandardPosition(): void;
+  clearHistory(): void;
   delete(): void;
 }
 
@@ -51,12 +54,12 @@ interface ChessEngineModule {
 // Worker message types
 interface WorkerRequest {
   id: number;
-  type: 'findBestMove';
-  board: (BoardSquare | null)[];
-  color: string;
-  depth: number;
+  type: 'findBestMove' | 'clearHistory';
+  board?: (BoardSquare | null)[];
+  color?: string;
+  depth?: number;
   maxTime?: number;
-  castlingRights: {
+  castlingRights?: {
     whiteKingSide: boolean;
     whiteQueenSide: boolean;
     blackKingSide: boolean;
@@ -73,6 +76,7 @@ interface WorkerResponse {
 
 // Module state
 let wasmModule: ChessEngineModule | null = null;
+let engineInstance: ChessEngineInstance | null = null;
 
 // Load the WASM module
 async function loadModule(): Promise<ChessEngineModule> {
@@ -143,6 +147,31 @@ async function loadModule(): Promise<ChessEngineModule> {
 self.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
   
+  if (request.type === 'clearHistory') {
+    // Clear position history for new game
+    try {
+      const module = await loadModule();
+      if (!engineInstance) {
+        engineInstance = new module.ChessEngine(3); // Default depth
+      }
+      engineInstance.clearHistory();
+      
+      const response: WorkerResponse = {
+        id: request.id,
+        success: true
+      };
+      self.postMessage(response);
+    } catch (error) {
+      const response: WorkerResponse = {
+        id: request.id,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+      self.postMessage(response);
+    }
+    return;
+  }
+  
   if (request.type !== 'findBestMove') {
     return;
   }
@@ -151,59 +180,67 @@ self.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
     // Load the module if not already loaded
     const module = await loadModule();
     
-    // Create the engine instance
-    const engine = new module.ChessEngine(request.depth);
+    // Create or reuse the engine instance
+    if (!engineInstance) {
+      engineInstance = new module.ChessEngine(request.depth || 3);
+    } else {
+      // Update depth if changed
+      if (request.depth !== undefined) {
+        engineInstance.setDepth(request.depth);
+      }
+    }
     
-    try {
-      // Set the board state
+    const engine = engineInstance;
+    
+    // Set the board state
+    if (request.board) {
       engine.setBoardFromArray(request.board);
-      
-      // Set castling rights
+    }
+    
+    // Set castling rights
+    if (request.castlingRights) {
       engine.setCastlingRights(
         request.castlingRights.whiteKingSide,
         request.castlingRights.whiteQueenSide,
         request.castlingRights.blackKingSide,
         request.castlingRights.blackQueenSide
       );
-      
-      // Set max time limit (0 = no limit)
-      if (request.maxTime !== undefined) {
-        engine.setMaxTime(request.maxTime);
-      }
-      
-      // Find the best move (this runs in the worker thread)
-      const result = engine.findBestMove(request.color);
-      
-      console.log('[Worker] findBestMove result:', result);
-      
-      // Check if we got an empty result (no legal moves)
-      if (!result || typeof result !== 'object') {
-        console.error('[Worker] Engine returned no result');
-        throw new Error('No legal moves available (checkmate or stalemate)');
-      }
-      
-      // Validate that we got a valid move with valid positions
-      if (!result.from || !result.to || 
-          result.from.row === undefined || result.from.col === undefined ||
-          result.to.row === undefined || result.to.col === undefined ||
-          result.from.row < 0 || result.from.col < 0 ||
-          result.to.row < 0 || result.to.col < 0) {
-        console.error('[Worker] Invalid move positions:', result);
-        throw new Error('No legal moves available (engine returned invalid positions)');
-      }
-      
-      // Send the result back to the main thread
-      const response: WorkerResponse = {
-        id: request.id,
-        success: true,
-        move: result
-      };
-      
-      self.postMessage(response);
-    } finally {
-      // Clean up the engine instance
-      engine.delete();
     }
+    
+    // Set max time limit (0 = no limit)
+    if (request.maxTime !== undefined) {
+      engine.setMaxTime(request.maxTime);
+    }
+    
+    // Find the best move (this runs in the worker thread)
+    const result = engine.findBestMove(request.color || 'white');
+    
+    console.log('[Worker] findBestMove result:', result);
+    
+    // Check if we got an empty result (no legal moves)
+    if (!result || typeof result !== 'object') {
+      console.error('[Worker] Engine returned no result');
+      throw new Error('No legal moves available (checkmate or stalemate)');
+    }
+    
+    // Validate that we got a valid move with valid positions
+    if (!result.from || !result.to || 
+        result.from.row === undefined || result.from.col === undefined ||
+        result.to.row === undefined || result.to.col === undefined ||
+        result.from.row < 0 || result.from.col < 0 ||
+        result.to.row < 0 || result.to.col < 0) {
+      console.error('[Worker] Invalid move positions:', result);
+      throw new Error('No legal moves available (engine returned invalid positions)');
+    }
+    
+    // Send the result back to the main thread
+    const response: WorkerResponse = {
+      id: request.id,
+      success: true,
+      move: result
+    };
+    
+    self.postMessage(response);
   } catch (error) {
     // Send error back to the main thread
     const response: WorkerResponse = {

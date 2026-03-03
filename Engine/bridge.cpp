@@ -50,6 +50,7 @@ private:
     Board board_;
     MinimaxEngine engine_;
     CastlingRights castling_;
+    std::vector<std::string> positionHistory_;
     
 public:
     ChessEngineWrapper(int depth = 3) : engine_(depth) {
@@ -99,7 +100,18 @@ public:
     // Find best move and return as JavaScript object
     val findBestMove(const std::string& colorStr) {
         Color color = stringToColor(colorStr);
-        Move bestMove = engine_.findBestMove(board_, color, castling_);
+        Move bestMove = engine_.findBestMove(board_, color, castling_, positionHistory_);
+        
+        // Update position history after move
+        Board newBoard = board_.clone();
+        newBoard.applyMove(bestMove);
+        std::string newPosHash = MinimaxEngine::getPositionHash(newBoard);
+        positionHistory_.push_back(newPosHash);
+        
+        // Keep only last 16 positions to avoid unbounded growth
+        if (positionHistory_.size() > 16) {
+            positionHistory_.erase(positionHistory_.begin());
+        }
         
         // Convert move to JavaScript object
         val result = val::object();
@@ -131,6 +143,14 @@ public:
             if (bestMove.isPromotion) {
                 result.set("promotion", pieceTypeToString(bestMove.promotionType));
             }
+            
+            if (bestMove.isCastling) {
+                result.set("isCastling", true);
+            }
+            
+            if (bestMove.isEnPassant) {
+                result.set("isEnPassant", true);
+            }
         }
         
         return result;
@@ -140,6 +160,12 @@ public:
     void initializeStandardPosition() {
         board_.initializeStandardPosition();
         castling_ = CastlingRights();
+        positionHistory_.clear();
+    }
+    
+    // Clear position history (for new games)
+    void clearHistory() {
+        positionHistory_.clear();
     }
 };
 
@@ -153,5 +179,6 @@ EMSCRIPTEN_BINDINGS(chess_engine) {
         .function("setBoardFromArray", &ChessEngineWrapper::setBoardFromArray)
         .function("setCastlingRights", &ChessEngineWrapper::setCastlingRights)
         .function("findBestMove", &ChessEngineWrapper::findBestMove)
-        .function("initializeStandardPosition", &ChessEngineWrapper::initializeStandardPosition);
+        .function("initializeStandardPosition", &ChessEngineWrapper::initializeStandardPosition)
+        .function("clearHistory", &ChessEngineWrapper::clearHistory);
 }

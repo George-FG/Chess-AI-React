@@ -62,7 +62,9 @@ function getWorker(): Worker {
             type: response.move.captured.type as PieceType,
             color: response.move.captured.color as PieceColor
           } : undefined,
-          promotion: response.move.promotion ? response.move.promotion as PieceType : undefined
+          promotion: response.move.promotion ? response.move.promotion as PieceType : undefined,
+          isCastling: response.move.isCastling,
+          isEnPassant: response.move.isEnPassant
         };
         pending.resolve(move);
       } else {
@@ -201,4 +203,44 @@ export function isWasmSupported(): boolean {
     // WebAssembly not supported
   }
   return false;
+}
+
+/**
+ * Clear the position history in the engine (call when starting a new game)
+ */
+export async function clearEngineHistory(): Promise<void> {
+  try {
+    const worker = getWorker();
+    const requestId = nextRequestId++;
+    
+    const promise = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Clear history timeout'));
+      }, 5000);
+      
+      const handler = (event: MessageEvent) => {
+        const response = event.data;
+        if (response.id === requestId) {
+          clearTimeout(timeout);
+          worker.removeEventListener('message', handler);
+          if (response.success) {
+            resolve();
+          } else {
+            reject(new Error(response.error || 'Failed to clear history'));
+          }
+        }
+      };
+      
+      worker.addEventListener('message', handler);
+    });
+    
+    worker.postMessage({
+      id: requestId,
+      type: 'clearHistory'
+    });
+    
+    await promise;
+  } catch (error) {
+    console.error('Error clearing engine history:', error);
+  }
 }
