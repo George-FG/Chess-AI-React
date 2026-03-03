@@ -3,10 +3,7 @@ import "./GameSetup.css";
 
 export type PlayerType = "human" | "ai";
 
-export type EngineVersion = "v1" | "v2" | "v3";
-
 export interface AISettings {
-  engineVersion: EngineVersion;
   depth: number;
   maxTime: number; // in milliseconds
 }
@@ -55,32 +52,9 @@ const MAX_TIME_OPTIONS = [
   { label: "No limit", value: 0 },
 ];
 
-const ENGINE_VERSIONS = [
-  { 
-    version: "v1" as EngineVersion, 
-    name: "Minimax v1",
-    description: "Alpha-beta pruning with material + positional evaluation",
-    available: true
-  },
-  { 
-    version: "v2" as EngineVersion, 
-    name: "Minimax v2",
-    description: "Phase-based evaluation: opening, midgame, endgame with checkmate detection",
-    available: true
-  },
-  { 
-    version: "v3" as EngineVersion, 
-    name: "Minimax v3",
-    description: "Coming soon - Neural network",
-    available: false
-  },
-];
-
 const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
   const [whitePlayer, setWhitePlayer] = useState<PlayerType>("human");
   const [blackPlayer, setBlackPlayer] = useState<PlayerType>("ai");
-  const [whiteAIEngine, setWhiteAIEngine] = useState<EngineVersion>("v1");
-  const [blackAIEngine, setBlackAIEngine] = useState<EngineVersion>("v1");
   const [whiteAIDepth, setWhiteAIDepth] = useState<number>(3);
   const [blackAIDepth, setBlackAIDepth] = useState<number>(3);
   const [whiteAIMaxTime, setWhiteAIMaxTime] = useState<number>(5000);
@@ -93,12 +67,10 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
       whitePlayer,
       blackPlayer,
       whiteAI: whitePlayer === "ai" ? { 
-        engineVersion: whiteAIEngine,
         depth: whiteAIDepth,
         maxTime: whiteAIMaxTime
       } : undefined,
       blackAI: blackPlayer === "ai" ? { 
-        engineVersion: blackAIEngine,
         depth: blackAIDepth,
         maxTime: blackAIMaxTime
       } : undefined,
@@ -178,28 +150,6 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
                   </div>
                   
                   <div className="ai-setting-group">
-                    <label>Engine Version</label>
-                    <select
-                      value={whiteAIEngine}
-                      onChange={(e) => setWhiteAIEngine(e.target.value as EngineVersion)}
-                      className="engine-select"
-                    >
-                      {ENGINE_VERSIONS.map((engine) => (
-                        <option 
-                          key={engine.version} 
-                          value={engine.version}
-                          disabled={!engine.available}
-                        >
-                          {engine.name} {!engine.available && "🔒"}
-                        </option>
-                      ))}
-                    </select>
-                    <small className="engine-description">
-                      {ENGINE_VERSIONS.find(e => e.version === whiteAIEngine)?.description}
-                    </small>
-                  </div>
-
-                  <div className="ai-setting-group">
                     <label>Difficulty (Search Depth)</label>
                     <select
                       value={whiteAIDepth}
@@ -243,28 +193,6 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
                     <h2>⚫ Black AI</h2>
                   </div>
                   
-                  <div className="ai-setting-group">
-                    <label>Engine Version</label>
-                    <select
-                      value={blackAIEngine}
-                      onChange={(e) => setBlackAIEngine(e.target.value as EngineVersion)}
-                      className="engine-select"
-                    >
-                      {ENGINE_VERSIONS.map((engine) => (
-                        <option 
-                          key={engine.version} 
-                          value={engine.version}
-                          disabled={!engine.available}
-                        >
-                          {engine.name} {!engine.available && "🔒"}
-                        </option>
-                      ))}
-                    </select>
-                    <small className="engine-description">
-                      {ENGINE_VERSIONS.find(e => e.version === blackAIEngine)?.description}
-                    </small>
-                  </div>
-
                   <div className="ai-setting-group">
                     <label>Difficulty (Search Depth)</label>
                     <select

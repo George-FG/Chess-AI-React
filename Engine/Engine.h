@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include <cstdint>
-#include <chrono>
 
 namespace Chess {
 
@@ -112,36 +111,6 @@ private:
     static std::vector<Position> getKingMoves(const Board& board, Position from, Color color);
     static std::vector<Position> getLinearMoves(const Board& board, Position from, Color color,
                                                const std::vector<std::pair<int, int>>& directions);
-};
-
-class Evaluator {
-public:
-    static int evaluate(const Board& board, Color aiColor);
-    
-private:
-    static const int PIECE_VALUES[7];
-};
-
-class MinimaxEngine {
-public:
-    MinimaxEngine(int depth = 3);
-    
-    Move findBestMove(const Board& board, Color color, const CastlingRights& castling);
-    void setDepth(int depth);
-    void setMaxTime(int milliseconds); // 0 = no limit
-    
-private:
-    int depth_;
-    int maxTime_; // in milliseconds
-    Color rootColor_;
-    std::chrono::steady_clock::time_point searchStartTime_;
-    bool timeExpired_;
-    
-    bool isTimeExpired() const;
-    int minimax(const Board& board, Color currentColor, int depth, bool maximizing,
-                int alpha, int beta, const CastlingRights& castling);
-    CastlingRights updateCastlingRights(const CastlingRights& rights, const Move& move, 
-                                       const Board& board);
 };
 
 } // namespace Chess

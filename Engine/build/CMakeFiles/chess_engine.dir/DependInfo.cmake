@@ -9,7 +9,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/Engine.cpp" "CMakeFiles/chess_engine.dir/Engine.cpp.o" "gcc" "CMakeFiles/chess_engine.dir/Engine.cpp.o.d"
-  "/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/Engine_v2.cpp" "CMakeFiles/chess_engine.dir/Engine_v2.cpp.o" "gcc" "CMakeFiles/chess_engine.dir/Engine_v2.cpp.o.d"
+  "/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/MinimaxEngine.cpp" "CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.o" "gcc" "CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.o.d"
   "/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/bridge.cpp" "CMakeFiles/chess_engine.dir/bridge.cpp.o" "gcc" "CMakeFiles/chess_engine.dir/bridge.cpp.o.d"
   )
 

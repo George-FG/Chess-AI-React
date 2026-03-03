@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Source files
 set(SOURCES
     Engine.cpp
-    Engine_v2.cpp
+    MinimaxEngine.cpp
     bridge.cpp
 )
 

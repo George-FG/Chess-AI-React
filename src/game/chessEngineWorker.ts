@@ -44,14 +44,8 @@ interface ChessEngineClass {
   new(depth: number): ChessEngineInstance;
 }
 
-interface ChessEngineV2Class {
-  new(): ChessEngineInstance;
-  new(depth: number): ChessEngineInstance;
-}
-
 interface ChessEngineModule {
   ChessEngine: ChessEngineClass;
-  ChessEngineV2: ChessEngineV2Class;
 }
 
 // Worker message types
@@ -62,7 +56,6 @@ interface WorkerRequest {
   color: string;
   depth: number;
   maxTime?: number;
-  engineVersion: 'v1' | 'v2' | 'v3';
   castlingRights: {
     whiteKingSide: boolean;
     whiteQueenSide: boolean;
@@ -158,13 +151,8 @@ self.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
     // Load the module if not already loaded
     const module = await loadModule();
     
-    // Select the engine version (default to v1)
-    const engineVersion = request.engineVersion || 'v1';
-    
-    // Create a new engine instance based on version
-    const engine = engineVersion === 'v2' 
-      ? new module.ChessEngineV2(request.depth)
-      : new module.ChessEngine(request.depth);
+    // Create the engine instance
+    const engine = new module.ChessEngine(request.depth);
     
     try {
       // Set the board state

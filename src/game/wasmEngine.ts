@@ -116,7 +116,6 @@ export interface BestMoveRequest {
   color: PieceColor;
   depth: number;
   maxTime?: number; // Max time in milliseconds (0 = no limit)
-  engineVersion?: 'v1' | 'v2' | 'v3'; // Added engine version
   castlingRights: {
     whiteKingSide: boolean;
     whiteQueenSide: boolean;
@@ -172,7 +171,6 @@ export async function findBestMoveWasm(request: BestMoveRequest): Promise<Move |
       color: request.color,
       depth: request.depth,
       maxTime: request.maxTime,
-      engineVersion: request.engineVersion || 'v1',
       castlingRights: request.castlingRights
     });
     

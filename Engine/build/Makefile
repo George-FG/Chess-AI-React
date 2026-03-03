@@ -153,29 +153,29 @@ Engine.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/chess_engine.dir/build.make CMakeFiles/chess_engine.dir/Engine.cpp.s
 .PHONY : Engine.cpp.s
 
-Engine_v2.o: Engine_v2.cpp.o
-.PHONY : Engine_v2.o
+MinimaxEngine.o: MinimaxEngine.cpp.o
+.PHONY : MinimaxEngine.o
 
 # target to build an object file
-Engine_v2.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/chess_engine.dir/build.make CMakeFiles/chess_engine.dir/Engine_v2.cpp.o
-.PHONY : Engine_v2.cpp.o
+MinimaxEngine.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/chess_engine.dir/build.make CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.o
+.PHONY : MinimaxEngine.cpp.o
 
-Engine_v2.i: Engine_v2.cpp.i
-.PHONY : Engine_v2.i
+MinimaxEngine.i: MinimaxEngine.cpp.i
+.PHONY : MinimaxEngine.i
 
 # target to preprocess a source file
-Engine_v2.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/chess_engine.dir/build.make CMakeFiles/chess_engine.dir/Engine_v2.cpp.i
-.PHONY : Engine_v2.cpp.i
+MinimaxEngine.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/chess_engine.dir/build.make CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.i
+.PHONY : MinimaxEngine.cpp.i
 
-Engine_v2.s: Engine_v2.cpp.s
-.PHONY : Engine_v2.s
+MinimaxEngine.s: MinimaxEngine.cpp.s
+.PHONY : MinimaxEngine.s
 
 # target to generate assembly for a file
-Engine_v2.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/chess_engine.dir/build.make CMakeFiles/chess_engine.dir/Engine_v2.cpp.s
-.PHONY : Engine_v2.cpp.s
+MinimaxEngine.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/chess_engine.dir/build.make CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.s
+.PHONY : MinimaxEngine.cpp.s
 
 bridge.o: bridge.cpp.o
 .PHONY : bridge.o
@@ -213,9 +213,9 @@ help:
 	@echo "... Engine.o"
 	@echo "... Engine.i"
 	@echo "... Engine.s"
-	@echo "... Engine_v2.o"
-	@echo "... Engine_v2.i"
-	@echo "... Engine_v2.s"
+	@echo "... MinimaxEngine.o"
+	@echo "... MinimaxEngine.i"
+	@echo "... MinimaxEngine.s"
 	@echo "... bridge.o"
 	@echo "... bridge.i"
 	@echo "... bridge.s"
