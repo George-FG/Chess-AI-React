@@ -651,4 +651,6 @@ CMakeFiles/chess_engine.dir/Engine_v2.cpp.o: \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__node_handle \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__functional/default_searcher.h \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__functional/not_fn.h \
-  /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__functional/perfect_forward.h
+  /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__functional/perfect_forward.h \
+  /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/cassert \
+  /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/assert.h

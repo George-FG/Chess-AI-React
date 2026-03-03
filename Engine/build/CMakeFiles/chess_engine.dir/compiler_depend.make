@@ -658,6 +658,7 @@ CMakeFiles/chess_engine.dir/Engine_v2.cpp.o: /Users/gterry/Documents/GitHub/Mod2
   /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/Engine.h \
   /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/Engine_v2.h \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/alloca.h \
+  /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/assert.h \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/bits/alltypes.h \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/bits/errno.h \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/bits/limits.h \
@@ -1211,6 +1212,7 @@ CMakeFiles/chess_engine.dir/Engine_v2.cpp.o: /Users/gterry/Documents/GitHub/Mod2
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/array \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/atomic \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/bit \
+  /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/cassert \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/cctype \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/cerrno \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/chrono \
@@ -2001,8 +2003,6 @@ CMakeFiles/chess_engine.dir/bridge.cpp.o: /Users/gterry/Documents/GitHub/Mod2_No
 
 /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/deque:
 
-/opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/cassert:
-
 /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/bitset:
 
 /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__type_traits/is_char_like_type.h:
@@ -2010,6 +2010,8 @@ CMakeFiles/chess_engine.dir/bridge.cpp.o: /Users/gterry/Documents/GitHub/Mod2_No
 /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__tree:
 
 /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__fwd/stack.h:
+
+/opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/cassert:
 
 /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/assert.h:
 
