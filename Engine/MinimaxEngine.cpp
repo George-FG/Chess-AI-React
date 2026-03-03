@@ -58,7 +58,7 @@ int Evaluator::evaluatePieceDevelopment(const Board& board, Color color) {
     }
     
     // Penalty for queen moving in opening (develops too early)
-    Piece queenHome = board.getPiece(Position(backRank, 3));
+    Piece queenHome = board.getPiece(Position(backRank, 4));
     if (queenHome.isEmpty() || queenHome.type != PieceType::QUEEN || queenHome.color != color) {
         // Find queen elsewhere
         for (int row = 0; row < 8; row++) {
@@ -82,6 +82,243 @@ int Evaluator::evaluatePieceDevelopment(const Board& board, Color color) {
     if (centerPawn2.isEmpty() || centerPawn2.type != PieceType::PAWN || centerPawn2.color != color) {
         score += 15; // Center pawn moved
     }
+    
+    return score;
+}
+
+// Check if we're in the endgame (few pieces left)
+bool Evaluator::isInEndgame(const Board& board) {
+    int totalMaterial = 0;
+    
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            Piece piece = board.getPiece(Position(row, col));
+            if (!piece.isEmpty() && piece.type != PieceType::KING && piece.type != PieceType::PAWN) {
+                totalMaterial += PIECE_VALUES[static_cast<int>(piece.type)];
+            }
+        }
+    }
+    
+    // Endgame if less than 1300 material (roughly Queen + minor piece or less per side)
+    // This catches pawn endgames and low piece endgames
+    return totalMaterial < 1300;
+}
+
+// Count total material for a color
+int Evaluator::countMaterial(const Board& board, Color color) {
+    int material = 0;
+    
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            Piece piece = board.getPiece(Position(row, col));
+            if (piece.color == color && !piece.isEmpty()) {
+                material += PIECE_VALUES[static_cast<int>(piece.type)];
+            }
+        }
+    }
+    
+    return material;
+}
+
+// Check if a pawn is passed (no enemy pawns in front or on adjacent files)
+bool Evaluator::isPassedPawn(const Board& board, Position pawnPos, Color pawnColor) {
+    int direction = (pawnColor == Color::WHITE) ? -1 : 1; // White moves up (row--), Black moves down (row++)
+    
+    // Check three files: current, left, and right
+    for (int fileOffset = -1; fileOffset <= 1; fileOffset++) {
+        int checkCol = pawnPos.col + fileOffset;
+        if (checkCol < 0 || checkCol >= 8) continue;
+        
+        // Check all squares ahead of the pawn on this file
+        for (int row = pawnPos.row + direction; row >= 0 && row < 8; row += direction) {
+            Piece piece = board.getPiece(Position(row, checkCol));
+            if (piece.type == PieceType::PAWN && piece.color != pawnColor) {
+                return false; // Enemy pawn blocking
+            }
+        }
+    }
+    
+    return true; // No enemy pawns blocking - it's passed!
+}
+
+// Evaluate king activity in endgame
+int Evaluator::evaluateKingActivity(const Board& board, Color color, bool isEndgame) {
+    if (!isEndgame) return 0;
+    
+    int score = 0;
+    Position kingPos(-1, -1);
+    
+    // Find king
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            Piece piece = board.getPiece(Position(row, col));
+            if (piece.type == PieceType::KING && piece.color == color) {
+                kingPos = Position(row, col);
+                break;
+            }
+        }
+        if (kingPos.isValid()) break;
+    }
+    
+    if (!kingPos.isValid()) return 0;
+    
+    // Centralization bonus - king should be active in center
+    int centerDistance = abs(kingPos.row - 3.5) + abs(kingPos.col - 3.5);
+    score += (7 - centerDistance) * 5; // Max +35 for being in center
+    
+    // Bonus for being near own pawns (supporting promotion)
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            Piece piece = board.getPiece(Position(row, col));
+            if (piece.type == PieceType::PAWN && piece.color == color) {
+                int distance = abs(row - kingPos.row) + abs(col - kingPos.col);
+                if (distance <= 2) {
+                    score += 20; // King near own pawn - good support
+                }
+            }
+            // Penalty for being far from enemy pawns we should be blocking
+            if (piece.type == PieceType::PAWN && piece.color != color) {
+                int distance = abs(row - kingPos.row) + abs(col - kingPos.col);
+                if (distance <= 2) {
+                    score += 15; // King near enemy pawn - good blockade
+                }
+            }
+        }
+    }
+    
+    return score;
+}
+
+// Comprehensive endgame evaluation
+int Evaluator::evaluateEndgame(const Board& board, Color aiColor) {
+    int score = 0;
+    Color opponentColor = (aiColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    
+    int myMaterial = countMaterial(board, aiColor);
+    int oppMaterial = countMaterial(board, opponentColor);
+    bool winningPosition = myMaterial > oppMaterial + 300;
+    
+    // 1. PAWN PROMOTION STRATEGY
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            Piece piece = board.getPiece(Position(row, col));
+            if (piece.type != PieceType::PAWN) continue;
+            
+            int advancement = (piece.color == Color::WHITE) ? (7 - row) : row;
+            
+            if (piece.color == aiColor) {
+                // Our pawns - push them!
+                // Quadratic bonus for advancement
+                score += advancement * advancement * 5; // 0, 5, 20, 45, 80, 125, 180, 245
+                
+                // Check if it's a passed pawn
+                if (isPassedPawn(board, Position(row, col), piece.color)) {
+                    // MASSIVE bonus for passed pawns
+                    score += 50 + advancement * 25; // 50-225 bonus
+                    
+                    // Extra bonus if close to promotion
+                    if (advancement >= 5) {
+                        score += 100; // On 6th or 7th rank - HUGE
+                    }
+                    
+                    // Check if king is supporting the pawn
+                    for (int kr = 0; kr < 8; kr++) {
+                        for (int kc = 0; kc < 8; kc++) {
+                            Piece king = board.getPiece(Position(kr, kc));
+                            if (king.type == PieceType::KING && king.color == aiColor) {
+                                int dist = abs(kr - row) + abs(kc - col);
+                                if (dist <= 2) {
+                                    score += 30; // King supporting passed pawn
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Opponent pawns - block them!
+                // Check if it's a passed pawn
+                if (isPassedPawn(board, Position(row, col), piece.color)) {
+                    // PENALTY for opponent's passed pawns
+                    score -= 100 + advancement * 30; // -100 to -310
+                    
+                    // CRITICAL if close to promotion
+                    if (advancement >= 5) {
+                        score -= 200; // Stop this immediately!
+                    }
+                }
+            }
+        }
+    }
+    
+    // 2. KING ACTIVITY
+    score += evaluateKingActivity(board, aiColor, true);
+    score -= evaluateKingActivity(board, opponentColor, true);
+    
+    // 3. PIECE ACTIVITY - get pieces close to enemy king for checkmate
+    if (winningPosition) {
+        // Find enemy king
+        Position enemyKingPos(-1, -1);
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                Piece piece = board.getPiece(Position(row, col));
+                if (piece.type == PieceType::KING && piece.color == opponentColor) {
+                    enemyKingPos = Position(row, col);
+                    break;
+                }
+            }
+            if (enemyKingPos.isValid()) break;
+        }
+        
+        if (enemyKingPos.isValid()) {
+            // Reward pieces for being close to enemy king
+            for (int row = 0; row < 8; row++) {
+                for (int col = 0; col < 8; col++) {
+                    Piece piece = board.getPiece(Position(row, col));
+                    if (piece.isEmpty() || piece.color != aiColor) continue;
+                    
+                    int distance = abs(row - enemyKingPos.row) + abs(col - enemyKingPos.col);
+                    
+                    switch (piece.type) {
+                        case PieceType::QUEEN:
+                            score += (14 - distance) * 8; // Queens hunt kings
+                            break;
+                        case PieceType::ROOK:
+                            score += (14 - distance) * 5; // Rooks cut off escape
+                            break;
+                        case PieceType::BISHOP:
+                        case PieceType::KNIGHT:
+                            score += (14 - distance) * 3; // Minors support
+                            break;
+                        case PieceType::KING:
+                            score += (14 - distance) * 6; // Our king helps deliver mate
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+        }
+    }
+    
+    // 4. SIMPLIFIED MATERIAL VALUES - pawns more valuable, knights less
+    int pawnCount = 0;
+    int knightCount = 0;
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            Piece piece = board.getPiece(Position(row, col));
+            if (piece.isEmpty()) continue;
+            
+            if (piece.color == aiColor) {
+                if (piece.type == PieceType::PAWN) pawnCount++;
+                if (piece.type == PieceType::KNIGHT) knightCount--;
+            } else {
+                if (piece.type == PieceType::PAWN) pawnCount--;
+                if (piece.type == PieceType::KNIGHT) knightCount++;
+            }
+        }
+    }
+    score += pawnCount * 20; // Pawns worth more in endgame
+    score += knightCount * 15; // Knights worth less in endgame
     
     return score;
 }
@@ -188,6 +425,9 @@ int Evaluator::evaluate(const Board& board, Color aiColor, const CastlingRights&
         }
     }
     
+    // Check if we're in endgame
+    bool inEndgame = isInEndgame(board);
+    
     // Opening phase bonuses
     if (isOpening) {
         int myDevelopment = evaluatePieceDevelopment(board, aiColor);
@@ -197,7 +437,7 @@ int Evaluator::evaluate(const Board& board, Color aiColor, const CastlingRights&
         opponentScore += opponentDevelopment;
         
         // Extra bonus for castling in opening - CASTLE AS SOON AS POSSIBLE
-        Piece myKing = board.getPiece(Position((aiColor == Color::WHITE) ? 0 : 7, 4));
+        Piece myKing = board.getPiece(Position((aiColor == Color::WHITE) ? 0 : 7, 3));
         if (myKing.isEmpty() || myKing.type != PieceType::KING) {
             // King has moved - check if it castled
             int backRank = (aiColor == Color::WHITE) ? 0 : 7;
@@ -211,7 +451,7 @@ int Evaluator::evaluate(const Board& board, Color aiColor, const CastlingRights&
         }
         
         // Same for opponent
-        Piece oppKing = board.getPiece(Position((opponentColor == Color::WHITE) ? 0 : 7, 4));
+        Piece oppKing = board.getPiece(Position((opponentColor == Color::WHITE) ? 0 : 7, 3));
         if (oppKing.isEmpty() || oppKing.type != PieceType::KING) {
             int backRank = (opponentColor == Color::WHITE) ? 0 : 7;
             Piece kingPos1 = board.getPiece(Position(backRank, 6));
@@ -258,6 +498,12 @@ int Evaluator::evaluate(const Board& board, Color aiColor, const CastlingRights&
         }
     }
     
+    // ENDGAME PHASE - comprehensive endgame evaluation
+    if (inEndgame) {
+        int endgameScore = evaluateEndgame(board, aiColor);
+        return myScore - opponentScore + endgameScore;
+    }
+    
     return myScore - opponentScore;
 }
 
@@ -301,22 +547,22 @@ CastlingRights MinimaxEngine::updateCastlingRights(
     // If rook moves, lose castling right for that side
     if (move.piece.type == PieceType::ROOK) {
         if (move.piece.color == Color::WHITE) {
-            if (move.from.col == 0) newRights.whiteQueenSide = false;
-            if (move.from.col == 7) newRights.whiteKingSide = false;
+            if (move.from.col == 0) newRights.whiteKingSide = false; // King-side rook at col 0
+            if (move.from.col == 7) newRights.whiteQueenSide = false; // Queen-side rook at col 7
         } else {
-            if (move.from.col == 0) newRights.blackQueenSide = false;
-            if (move.from.col == 7) newRights.blackKingSide = false;
+            if (move.from.col == 0) newRights.blackKingSide = false;
+            if (move.from.col == 7) newRights.blackQueenSide = false;
         }
     }
     
     // If a rook is captured on its original square, lose that side's castling right
     if (!move.captured.isEmpty() && move.captured.type == PieceType::ROOK) {
         if (move.captured.color == Color::WHITE) {
-            if (move.to.row == 7 && move.to.col == 0) newRights.whiteQueenSide = false;
-            if (move.to.row == 7 && move.to.col == 7) newRights.whiteKingSide = false;
+            if (move.to.row == 0 && move.to.col == 0) newRights.whiteKingSide = false;
+            if (move.to.row == 0 && move.to.col == 7) newRights.whiteQueenSide = false;
         } else {
-            if (move.to.row == 0 && move.to.col == 0) newRights.blackQueenSide = false;
-            if (move.to.row == 0 && move.to.col == 7) newRights.blackKingSide = false;
+            if (move.to.row == 7 && move.to.col == 0) newRights.blackKingSide = false;
+            if (move.to.row == 7 && move.to.col == 7) newRights.blackQueenSide = false;
         }
     }
     

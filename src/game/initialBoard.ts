@@ -8,8 +8,8 @@ export const createInitialBoard = (): Board => {
     { type: 'r', color: 'white' }, // a1
     { type: 'n', color: 'white' }, // b1
     { type: 'b', color: 'white' }, // c1
-    { type: 'q', color: 'white' }, // d1 - Queen on d-file
-    { type: 'k', color: 'white' }, // e1 - King on e-file
+    { type: 'k', color: 'white' }, // d1 - King on d-file (displays as e1 due to column reversal)
+    { type: 'q', color: 'white' }, // e1 - Queen on e-file (displays as d1 due to column reversal)
     { type: 'b', color: 'white' }, // f1
     { type: 'n', color: 'white' }, // g1
     { type: 'r', color: 'white' }, // h1
@@ -28,8 +28,8 @@ export const createInitialBoard = (): Board => {
     { type: 'r', color: 'black' }, // a8
     { type: 'n', color: 'black' }, // b8
     { type: 'b', color: 'black' }, // c8
-    { type: 'q', color: 'black' }, // d8 - Queen on d-file
-    { type: 'k', color: 'black' }, // e8 - King on e-file
+    { type: 'k', color: 'black' }, // d8 - King on d-file (displays as e8 due to column reversal)
+    { type: 'q', color: 'black' }, // e8 - Queen on e-file (displays as d8 due to column reversal)
     { type: 'b', color: 'black' }, // f8
     { type: 'n', color: 'black' }, // g8
     { type: 'r', color: 'black' }, // h8

@@ -159,16 +159,16 @@ export const useChessGame = (options: GameOptions) => {
 
     // Handle castling: move the rook
     if (isCastling) {
-      if (to.col === 6) {
-        // King-side castling: King e1->g1 (col 4->6), Rook h1->f1 (col 7->5)
-        const rook = newBoard[from.row][7];
-        newBoard[from.row][5] = rook;
-        newBoard[from.row][7] = null;
-      } else if (to.col === 2) {
-        // Queen-side castling: King e1->c1 (col 4->2), Rook a1->d1 (col 0->3)
+      if (to.col === 1) {
+        // King-side castling: King 3→1 in data (displays as e→g), Rook 0→2 in data (displays as h→f)
         const rook = newBoard[from.row][0];
-        newBoard[from.row][3] = rook;
+        newBoard[from.row][2] = rook;
         newBoard[from.row][0] = null;
+      } else if (to.col === 5) {
+        // Queen-side castling: King 3→5 in data (displays as e→c), Rook 7→4 in data (displays as a→d)
+        const rook = newBoard[from.row][7];
+        newBoard[from.row][4] = rook;
+        newBoard[from.row][7] = null;
       }
     }
 
@@ -248,22 +248,22 @@ export const useChessGame = (options: GameOptions) => {
     // Rook moved - lose castling right on that side
     if (piece.type === 'r') {
       if (piece.color === 'white') {
-        if (from.col === 0) newCastlingRights.whiteQueenSide = false;
-        if (from.col === 7) newCastlingRights.whiteKingSide = false;
+        if (from.col === 0) newCastlingRights.whiteKingSide = false; // Rook at data col 0 = h-file visually
+        if (from.col === 7) newCastlingRights.whiteQueenSide = false; // Rook at data col 7 = a-file visually
       } else {
-        if (from.col === 0) newCastlingRights.blackQueenSide = false;
-        if (from.col === 7) newCastlingRights.blackKingSide = false;
+        if (from.col === 0) newCastlingRights.blackKingSide = false; // Rook at data col 0 = h-file visually
+        if (from.col === 7) newCastlingRights.blackQueenSide = false; // Rook at data col 7 = a-file visually
       }
     }
 
     // Rook captured - lose castling right on that side
     if (captured && captured.type === 'r') {
       if (captured.color === 'white') {
-        if (to.col === 0) newCastlingRights.whiteQueenSide = false;
-        if (to.col === 7) newCastlingRights.whiteKingSide = false;
+        if (to.col === 0) newCastlingRights.whiteKingSide = false; // Rook at data col 0 = h-file visually
+        if (to.col === 7) newCastlingRights.whiteQueenSide = false; // Rook at data col 7 = a-file visually
       } else {
-        if (to.col === 0) newCastlingRights.blackQueenSide = false;
-        if (to.col === 7) newCastlingRights.blackKingSide = false;
+        if (to.col === 0) newCastlingRights.blackKingSide = false; // Rook at data col 0 = h-file visually
+        if (to.col === 7) newCastlingRights.blackQueenSide = false; // Rook at data col 7 = a-file visually
       }
     }
 

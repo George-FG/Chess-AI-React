@@ -13,7 +13,12 @@ public:
     static int evaluate(const Board& board, Color aiColor, const CastlingRights& castling, int moveCount = 0);
     static const int PIECE_VALUES[7];
     static bool isInOpeningPhase(int moveCount);
+    static bool isInEndgame(const Board& board);
     static int evaluatePieceDevelopment(const Board& board, Color color);
+    static int evaluateEndgame(const Board& board, Color aiColor);
+    static int countMaterial(const Board& board, Color color);
+    static bool isPassedPawn(const Board& board, Position pawnPos, Color pawnColor);
+    static int evaluateKingActivity(const Board& board, Color color, bool isEndgame);
 };
 
 // AI engine using minimax with alpha-beta pruning

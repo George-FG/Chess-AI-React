@@ -28,10 +28,10 @@ void Board::initializeStandardPosition() {
         squares[6][i] = Piece(PieceType::PAWN, Color::BLACK);
     }
     
-    // Set up other pieces
+    // Set up other pieces (King and Queen swapped to match TypeScript with display reversal)
     PieceType backRow[8] = {
-        PieceType::ROOK, PieceType::KNIGHT, PieceType::BISHOP, PieceType::QUEEN,
-        PieceType::KING, PieceType::BISHOP, PieceType::KNIGHT, PieceType::ROOK
+        PieceType::ROOK, PieceType::KNIGHT, PieceType::BISHOP, PieceType::KING,
+        PieceType::QUEEN, PieceType::BISHOP, PieceType::KNIGHT, PieceType::ROOK
     };
     
     for (int i = 0; i < 8; i++) {
@@ -82,14 +82,14 @@ void Board::applyMove(const Move& move) {
         setPiece(move.from, Piece());
         
         // Move the rook
-        if (move.to.col > move.from.col) { // King side
-            Piece rook = getPiece(Position(move.from.row, 7));
-            setPiece(Position(move.from.row, 7), Piece());
-            setPiece(Position(move.from.row, 5), rook);
-        } else { // Queen side
+        if (move.to.col < move.from.col) { // King side (King moves left in data: 3→1)
             Piece rook = getPiece(Position(move.from.row, 0));
             setPiece(Position(move.from.row, 0), Piece());
-            setPiece(Position(move.from.row, 3), rook);
+            setPiece(Position(move.from.row, 2), rook);
+        } else { // Queen side (King moves right in data: 3→5)
+            Piece rook = getPiece(Position(move.from.row, 7));
+            setPiece(Position(move.from.row, 7), Piece());
+            setPiece(Position(move.from.row, 4), rook);
         }
         return;
     }
@@ -336,61 +336,61 @@ std::vector<Move> MoveGenerator::generateMoves(
             if (piece.type == PieceType::KING && !isKingInCheck(board, color)) {
                 int homeRow = (color == Color::WHITE) ? 0 : 7;
                 
-                // King-side castling
+                // King-side castling (King moves 3→1, Rook 0→2)
                 if (color == Color::WHITE && castling.whiteKingSide) {
-                    if (board.isEmpty(Position(homeRow, 5)) && 
-                        board.isEmpty(Position(homeRow, 6))) {
+                    if (board.isEmpty(Position(homeRow, 1)) && 
+                        board.isEmpty(Position(homeRow, 2))) {
                         // Check if squares king passes through are not under attack
-                        Move testMove1(Position(homeRow, 4), Position(homeRow, 5), piece);
-                        Move testMove2(Position(homeRow, 4), Position(homeRow, 6), piece);
+                        Move testMove1(Position(homeRow, 3), Position(homeRow, 2), piece);
+                        Move testMove2(Position(homeRow, 3), Position(homeRow, 1), piece);
                         
                         if (!wouldMoveResultInCheck(board, testMove1) && 
                             !wouldMoveResultInCheck(board, testMove2)) {
-                            Move castleMove(Position(homeRow, 4), Position(homeRow, 6), piece);
+                            Move castleMove(Position(homeRow, 3), Position(homeRow, 1), piece);
                             castleMove.isCastling = true;
                             allMoves.push_back(castleMove);
                         }
                     }
                 } else if (color == Color::BLACK && castling.blackKingSide) {
-                    if (board.isEmpty(Position(homeRow, 5)) && 
-                        board.isEmpty(Position(homeRow, 6))) {
-                        Move testMove1(Position(homeRow, 4), Position(homeRow, 5), piece);
-                        Move testMove2(Position(homeRow, 4), Position(homeRow, 6), piece);
+                    if (board.isEmpty(Position(homeRow, 1)) && 
+                        board.isEmpty(Position(homeRow, 2))) {
+                        Move testMove1(Position(homeRow, 3), Position(homeRow, 2), piece);
+                        Move testMove2(Position(homeRow, 3), Position(homeRow, 1), piece);
                         
                         if (!wouldMoveResultInCheck(board, testMove1) && 
                             !wouldMoveResultInCheck(board, testMove2)) {
-                            Move castleMove(Position(homeRow, 4), Position(homeRow, 6), piece);
+                            Move castleMove(Position(homeRow, 3), Position(homeRow, 1), piece);
                             castleMove.isCastling = true;
                             allMoves.push_back(castleMove);
                         }
                     }
                 }
                 
-                // Queen-side castling
+                // Queen-side castling (King moves 3→5, Rook 7→4)
                 if (color == Color::WHITE && castling.whiteQueenSide) {
-                    if (board.isEmpty(Position(homeRow, 1)) && 
-                        board.isEmpty(Position(homeRow, 2)) && 
-                        board.isEmpty(Position(homeRow, 3))) {
-                        Move testMove1(Position(homeRow, 4), Position(homeRow, 3), piece);
-                        Move testMove2(Position(homeRow, 4), Position(homeRow, 2), piece);
+                    if (board.isEmpty(Position(homeRow, 4)) && 
+                        board.isEmpty(Position(homeRow, 5)) && 
+                        board.isEmpty(Position(homeRow, 6))) {
+                        Move testMove1(Position(homeRow, 3), Position(homeRow, 4), piece);
+                        Move testMove2(Position(homeRow, 3), Position(homeRow, 5), piece);
                         
                         if (!wouldMoveResultInCheck(board, testMove1) && 
                             !wouldMoveResultInCheck(board, testMove2)) {
-                            Move castleMove(Position(homeRow, 4), Position(homeRow, 2), piece);
+                            Move castleMove(Position(homeRow, 3), Position(homeRow, 5), piece);
                             castleMove.isCastling = true;
                             allMoves.push_back(castleMove);
                         }
                     }
                 } else if (color == Color::BLACK && castling.blackQueenSide) {
-                    if (board.isEmpty(Position(homeRow, 1)) && 
-                        board.isEmpty(Position(homeRow, 2)) && 
-                        board.isEmpty(Position(homeRow, 3))) {
-                        Move testMove1(Position(homeRow, 4), Position(homeRow, 3), piece);
-                        Move testMove2(Position(homeRow, 4), Position(homeRow, 2), piece);
+                    if (board.isEmpty(Position(homeRow, 4)) && 
+                        board.isEmpty(Position(homeRow, 5)) && 
+                        board.isEmpty(Position(homeRow, 6))) {
+                        Move testMove1(Position(homeRow, 3), Position(homeRow, 4), piece);
+                        Move testMove2(Position(homeRow, 3), Position(homeRow, 5), piece);
                         
                         if (!wouldMoveResultInCheck(board, testMove1) && 
                             !wouldMoveResultInCheck(board, testMove2)) {
-                            Move castleMove(Position(homeRow, 4), Position(homeRow, 2), piece);
+                            Move castleMove(Position(homeRow, 3), Position(homeRow, 5), piece);
                             castleMove.isCastling = true;
                             allMoves.push_back(castleMove);
                         }
