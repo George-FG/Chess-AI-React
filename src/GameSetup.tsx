@@ -28,6 +28,7 @@ const DEPTH_OPTIONS = [
   { label: "4 - Hard", value: 4 },
   { label: "5 - Very Hard", value: 5 },
   { label: "6 - Expert", value: 6 },
+  { label: "Unlimited (uses max time)", value: 500 },
 ];
 
 const CLOCK_TIME_OPTIONS = [
@@ -46,6 +47,8 @@ const MAX_TIME_OPTIONS = [
   { label: "2 seconds", value: 2000 },
   { label: "3 seconds", value: 3000 },
   { label: "5 seconds", value: 5000 },
+  { label: "7 seconds", value: 7000 },
+  { label: "8 seconds", value: 8000 },
   { label: "10 seconds", value: 10000 },
   { label: "15 seconds", value: 15000 },
   { label: "30 seconds", value: 30000 },

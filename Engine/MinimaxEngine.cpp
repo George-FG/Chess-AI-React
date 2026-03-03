@@ -69,6 +69,26 @@ int Evaluator::evaluate(const Board& board, Color aiColor) {
         }
     }
     
+    // Castling bonus: check if king has castled (king on g or c file on back rank)
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            Piece piece = board.getPiece(Position(row, col));
+            if (piece.type == PieceType::KING) {
+                if (piece.color == aiColor) {
+                    int backRank = (aiColor == Color::WHITE) ? 0 : 7;
+                    if (row == backRank && (col == 6 || col == 2)) {
+                        myScore += 50; // Bonus for castling
+                    }
+                } else {
+                    int backRank = (opponentColor == Color::WHITE) ? 0 : 7;
+                    if (row == backRank && (col == 6 || col == 2)) {
+                        opponentScore += 50;
+                    }
+                }
+            }
+        }
+    }
+    
     return myScore - opponentScore;
 }
 
@@ -199,33 +219,69 @@ Move MinimaxEngine::findBestMove(const Board& board, Color color, const Castling
         return Move(); // No valid moves
     }
     
-    Move bestMove = moves[0];
-    int bestScore = std::numeric_limits<int>::min();
-    int alpha = std::numeric_limits<int>::min();
-    int beta = std::numeric_limits<int>::max();
-    
-    // Move ordering: prioritize captures
+    // Move ordering: prioritize castling and captures
     std::sort(moves.begin(), moves.end(), [](const Move& a, const Move& b) {
-        int aScore = a.captured.isEmpty() ? 0 : 10;
-        int bScore = b.captured.isEmpty() ? 0 : 10;
+        int aScore = 0;
+        int bScore = 0;
+        
+        // Highest priority: castling
+        if (a.isCastling) aScore += 20;
+        if (b.isCastling) bScore += 20;
+        
+        // Then captures
+        if (!a.captured.isEmpty()) aScore += 10;
+        if (!b.captured.isEmpty()) bScore += 10;
+        
         return bScore < aScore;
     });
     
-    for (const Move& move : moves) {
-        Board newBoard = board.clone();
-        newBoard.applyMove(move);
-        
-        CastlingRights newCastling = updateCastlingRights(castling, move, board);
-        Color nextColor = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
-        
-        int score = minimax(newBoard, nextColor, depth_ - 1, false, alpha, beta, newCastling);
-        
-        if (score > bestScore) {
-            bestScore = score;
-            bestMove = move;
+    // Iterative deepening: start at depth 1, increase until time runs out or max depth reached
+    Move bestMove = moves[0];
+    int maxDepth = depth_;
+    
+    for (int currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
+        if (isTimeExpired()) {
+            // Time expired, return best move found so far
+            break;
         }
         
-        alpha = std::max(alpha, score);
+        int bestScore = std::numeric_limits<int>::min();
+        int alpha = std::numeric_limits<int>::min();
+        int beta = std::numeric_limits<int>::max();
+        Move depthBestMove = moves[0];
+        
+        bool searchCompleted = true;
+        
+        for (const Move& move : moves) {
+            if (isTimeExpired()) {
+                // Time expired during this depth, keep previous depth's best move
+                searchCompleted = false;
+                break;
+            }
+            
+            Board newBoard = board.clone();
+            newBoard.applyMove(move);
+            
+            CastlingRights newCastling = updateCastlingRights(castling, move, board);
+            Color nextColor = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
+            
+            int score = minimax(newBoard, nextColor, currentDepth - 1, false, alpha, beta, newCastling);
+            
+            if (score > bestScore) {
+                bestScore = score;
+                depthBestMove = move;
+            }
+            
+            alpha = std::max(alpha, score);
+        }
+        
+        // Only update best move if we completed this depth's search
+        if (searchCompleted) {
+            bestMove = depthBestMove;
+            
+            // Re-order moves based on scores for next iteration (move ordering optimization)
+            // This helps alpha-beta pruning in deeper searches
+        }
     }
     
     return bestMove;

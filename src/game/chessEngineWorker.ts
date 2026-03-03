@@ -216,5 +216,14 @@ self.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
   }
 });
 
-// Signal that the worker is ready
-self.postMessage({ type: 'ready' });
+// Pre-load the WASM module when worker starts
+loadModule()
+  .then(() => {
+    // Signal that the worker is ready after WASM loads
+    self.postMessage({ type: 'ready' });
+    console.log('[Worker] Ready and WASM loaded');
+  })
+  .catch((error) => {
+    console.error('[Worker] Failed to initialize:', error);
+    self.postMessage({ type: 'error', error: String(error) });
+  });

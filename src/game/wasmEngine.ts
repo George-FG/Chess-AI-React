@@ -142,10 +142,12 @@ export async function findBestMoveWasm(request: BestMoveRequest): Promise<Move |
       pendingRequests.set(requestId, { resolve, reject });
       
       // Set a timeout to prevent hanging forever
+      // Use generous timeout for first few requests (WASM loading)
+      const timeoutDuration = Math.max((request.maxTime || 30000) + 10000, 60000);
       const timeout = setTimeout(() => {
         pendingRequests.delete(requestId);
         reject(new Error('Worker request timeout'));
-      }, (request.maxTime || 30000) + 5000); // Add 5s buffer to maxTime
+      }, timeoutDuration);
       
       // Clear timeout when promise resolves/rejects
       const originalResolve = resolve;
