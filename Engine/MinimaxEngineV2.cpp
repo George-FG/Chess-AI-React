@@ -191,6 +191,26 @@ int EvaluatorV2::evaluateEndgame(const Board& board, Color aiColor, const Castli
     
     int score = 0;
     
+    // PREVENT opponent pawn promotion - this is critical!
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece p = board.getPiece(Position(r, c));
+            if (p.isEmpty() || p.color != oppColor || p.type != PieceType::PAWN) continue;
+            
+            // Check how close opponent pawn is to promotion
+            int oppAdvancedRank = (oppColor == Color::WHITE) ? (7 - r) : r;
+            if (oppAdvancedRank >= 4) {
+                // HEAVILY penalize opponent's advanced pawns
+                score -= oppAdvancedRank * 50;
+                
+                // MASSIVE penalty if opponent pawn is about to promote
+                if (oppAdvancedRank >= 6) {
+                    score -= 200;
+                }
+            }
+        }
+    }
+    
     // If we have significantly more material, push for checkmate
     if (aiMaterial - oppMaterial > 300) { // Up by more than a minor piece
         Position oppKing = findKing(board, oppColor);
@@ -841,8 +861,13 @@ int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, 
         bool inCheck = currentlyInCheck;
         
         if (inCheck) {
-            // Checkmate - very bad if we're being checkmated, very good if opponent is
-            return maximizing ? -100000 : 100000;
+            // Checkmate - prefer shorter mates by adjusting score with ply
+            // The closer to root (lower ply), the better the mate
+            if (maximizing) {
+                return -100000 + ply; // Being mated is bad, prefer delaying it
+            } else {
+                return 100000 - ply; // Mating opponent is good, prefer doing it sooner
+            }
         } else {
             // Stalemate - neutral
             return 0;
@@ -1033,6 +1058,28 @@ Move MinimaxEngineV2::findBestMove(const Board& board, Color color, const Castli
         return Move(); // No legal moves
     }
     
+    // IMMEDIATE CHECKMATE DETECTION - check for mate-in-1 before deep search
+    Color oppColor = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    for (const Move& move : moves) {
+        Board testBoard = board.clone();
+        testBoard.applyMove(move);
+        CastlingRights newCastling = updateCastlingRights(castling, move, board);
+        
+        // Check if opponent has any legal moves after this move
+        std::vector<Move> oppMoves = MoveGenerator::generateMoves(testBoard, oppColor, newCastling);
+        
+        if (oppMoves.empty()) {
+            // Check if opponent is in check (checkmate) or just stalemated
+            bool oppInCheck = MoveGenerator::isKingInCheck(testBoard, oppColor);
+            if (oppInCheck) {
+                // This is checkmate! Return immediately
+                Move checkmate = move;
+                checkmate.searchDepth = 1;
+                return checkmate;
+            }
+        }
+    }
+    
     // Check if we have a castling move available
     bool castlingAvailable = false;
     for (const Move& move : moves) {
@@ -1146,8 +1193,8 @@ Move MinimaxEngineV2::findBestMove(const Board& board, Color color, const Castli
             depthReached = currentDepth; // Update depth reached
         }
         
-        // Early exit if mate found
-        if (bestScore > 450000) break;
+        // Early exit if mate found (checkmate scores are around 100000 - ply)
+        if (bestScore > 99000) break;
     }
     
     // Set the search depth in the move
