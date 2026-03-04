@@ -1,5 +1,5 @@
-#ifndef MINIMAX_ENGINE_H
-#define MINIMAX_ENGINE_H
+#ifndef MINIMAX_ENGINE_V2_H
+#define MINIMAX_ENGINE_V2_H
 
 #include "Engine.h"
 #include <limits>
@@ -7,27 +7,28 @@
 
 namespace Chess {
 
-// Evaluates board positions
-class Evaluator {
+// Evaluator for V2 engine with improved evaluation
+class EvaluatorV2 {
 public:
-    static int evaluate(const Board& board, Color aiColor, const CastlingRights& castling, int moveCount = 0);
+    static int evaluate(const Board& board, Color aiColor, const CastlingRights& castling, 
+                       bool whiteHasCastled, bool blackHasCastled, int moveCount);
     static const int PIECE_VALUES[7];
-    static bool isInOpeningPhase(int moveCount);
-    static bool isInEndgame(const Board& board);
-    static int evaluatePieceDevelopment(const Board& board, Color color);
-    static int evaluateEndgame(const Board& board, Color aiColor);
     static int countMaterial(const Board& board, Color color);
-    static bool isPassedPawn(const Board& board, Position pawnPos, Color pawnColor);
-    static int evaluateKingActivity(const Board& board, Color color, bool isEndgame);
+    static int evaluatePieceDevelopment(const Board& board, Color color, int moveCount);
+    static int evaluateMobility(const Board& board, Color color, const CastlingRights& castling);
+    static bool isPieceOnStartingSquare(PieceType type, Color color, Position pos);
+    static int countUndevelopedPieces(const Board& board, Color color);
+    static bool isRookDeveloped(const Board& board, Color color);
 };
 
 // AI engine using minimax with alpha-beta pruning
-class MinimaxEngine {
+class MinimaxEngineV2 {
 public:
-    MinimaxEngine(int depth = 3);
+    MinimaxEngineV2(int depth = 3);
     
     Move findBestMove(const Board& board, Color color, const CastlingRights& castling,
-                     const std::vector<std::string>& positionHistory = {});
+                     const std::vector<std::string>& positionHistory = {},
+                     bool whiteHasCastled = false, bool blackHasCastled = false);
     void setDepth(int depth);
     void setMaxTime(int milliseconds); // 0 = no limit
     
@@ -40,12 +41,13 @@ private:
     Color rootColor_;
     std::chrono::steady_clock::time_point searchStartTime_;
     bool timeExpired_;
+    bool whiteHasCastled_;
+    bool blackHasCastled_;
     
     bool isTimeExpired() const;
     int minimax(const Board& board, Color currentColor, int depth, bool maximizing,
                 int alpha, int beta, const CastlingRights& castling, int moveCount);
-    int quiescence(const Board& board, Color currentColor, bool maximizing,
-                   int alpha, int beta, const CastlingRights& castling, int moveCount);
+    void orderMoves(std::vector<Move>& moves, const Board& board);
     CastlingRights updateCastlingRights(const CastlingRights& rights, const Move& move, 
                                        const Board& board);
     int moveCount_;
@@ -53,4 +55,4 @@ private:
 
 } // namespace Chess
 
-#endif // MINIMAX_ENGINE_H
+#endif // MINIMAX_ENGINE_V2_H

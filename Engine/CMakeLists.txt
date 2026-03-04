@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(SOURCES
     Engine.cpp
     MinimaxEngine.cpp
+    MinimaxEngineV2.cpp
     bridge.cpp
 )
 

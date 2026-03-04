@@ -662,6 +662,7 @@ CMakeFiles/chess_engine.dir/bridge.cpp.o: \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/chrono \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__chrono/file_clock.h \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/forward_list \
+  /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/MinimaxEngineV2.h \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/sstream \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__ostream/basic_ostream.h \
   /opt/homebrew/Cellar/emscripten/5.0.2/libexec/cache/sysroot/include/c++/v1/__ostream/put_character_sequence.h \

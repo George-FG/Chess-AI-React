@@ -9,6 +9,7 @@ export type PlayerType = 'human' | 'ai';
 export interface AISettings {
   depth: number;
   maxTime: number; // in milliseconds
+  version: number; // 1 for V1 (alpha-beta), 2 for V2 (simple minimax with castling bonus)
 }
 
 export interface GameOptions {
@@ -481,6 +482,7 @@ export const useChessGame = (options: GameOptions) => {
     const aiSettings = gameState.currentPlayer === 'white' ? options.whiteAI : options.blackAI;
     const depth = aiSettings?.depth ?? 3;
     const maxTime = aiSettings?.maxTime ?? 0;
+    const version = aiSettings?.version ?? 1;
     const currentBoard = gameState.board;
     const currentPlayer = gameState.currentPlayer;
     const castlingRights = gameState.castlingRights;
@@ -492,6 +494,7 @@ export const useChessGame = (options: GameOptions) => {
         color: currentPlayer,
         depth,
         maxTime,
+        version,
         castlingRights
       });
 

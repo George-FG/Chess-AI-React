@@ -27,6 +27,8 @@ interface WasmMove {
 }
 
 interface ChessEngineInstance {
+  setEngineVersion(version: number): void;
+  getEngineVersion(): number;
   setDepth(depth: number): void;
   setMaxTime(milliseconds: number): void;
   setBoardFromArray(boardArray: (BoardSquare | null)[]): void;
@@ -45,6 +47,7 @@ interface ChessEngineInstance {
 interface ChessEngineClass {
   new(): ChessEngineInstance;
   new(depth: number): ChessEngineInstance;
+  new(depth: number, version: number): ChessEngineInstance;
 }
 
 interface ChessEngineModule {
@@ -59,6 +62,7 @@ interface WorkerRequest {
   color?: string;
   depth?: number;
   maxTime?: number;
+  version?: number;
   castlingRights?: {
     whiteKingSide: boolean;
     whiteQueenSide: boolean;
@@ -182,11 +186,15 @@ self.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
     
     // Create or reuse the engine instance
     if (!engineInstance) {
-      engineInstance = new module.ChessEngine(request.depth || 3);
+      engineInstance = new module.ChessEngine(request.depth || 3, request.version || 1);
     } else {
       // Update depth if changed
       if (request.depth !== undefined) {
         engineInstance.setDepth(request.depth);
+      }
+      // Update version if changed
+      if (request.version !== undefined) {
+        engineInstance.setEngineVersion(request.version);
       }
     }
     

@@ -5,6 +5,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/chess_engine.dir/Engine.cpp.o.d"
   "CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.o"
   "CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.o.d"
+  "CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.o"
+  "CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.o.d"
   "CMakeFiles/chess_engine.dir/bridge.cpp.o"
   "CMakeFiles/chess_engine.dir/bridge.cpp.o.d"
 )

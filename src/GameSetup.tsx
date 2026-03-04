@@ -6,6 +6,7 @@ export type PlayerType = "human" | "ai";
 export interface AISettings {
   depth: number;
   maxTime: number; // in milliseconds
+  version: number; // 1 for V1 (alpha-beta), 2 for V2 (simple minimax with castling bonus)
 }
 
 export interface GameSetupOptions {
@@ -62,6 +63,8 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
   const [blackAIDepth, setBlackAIDepth] = useState<number>(3);
   const [whiteAIMaxTime, setWhiteAIMaxTime] = useState<number>(5000);
   const [blackAIMaxTime, setBlackAIMaxTime] = useState<number>(5000);
+  const [whiteAIVersion, setWhiteAIVersion] = useState<number>(1);
+  const [blackAIVersion, setBlackAIVersion] = useState<number>(1);
   const [clockEnabled, setClockEnabled] = useState<boolean>(false);
   const [initialTime, setInitialTime] = useState<number>(900);
 
@@ -71,11 +74,13 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
       blackPlayer,
       whiteAI: whitePlayer === "ai" ? { 
         depth: whiteAIDepth,
-        maxTime: whiteAIMaxTime
+        maxTime: whiteAIMaxTime,
+        version: whiteAIVersion
       } : undefined,
       blackAI: blackPlayer === "ai" ? { 
         depth: blackAIDepth,
-        maxTime: blackAIMaxTime
+        maxTime: blackAIMaxTime,
+        version: blackAIVersion
       } : undefined,
       clockEnabled,
       initialTime,
@@ -153,6 +158,21 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
                   </div>
                   
                   <div className="ai-setting-group">
+                    <label>Engine Version</label>
+                    <select
+                      value={whiteAIVersion}
+                      onChange={(e) => setWhiteAIVersion(Number(e.target.value))}
+                      className="version-select"
+                    >
+                      <option value={1}>V1 - Alpha-Beta Pruning (Advanced)</option>
+                      <option value={2}>V2 - Simple Minimax (Castling Focused)</option>
+                    </select>
+                    <small className="help-text">
+                      V1 uses advanced search with alpha-beta pruning. V2 uses simple minimax with castling bonus.
+                    </small>
+                  </div>
+                  
+                  <div className="ai-setting-group">
                     <label>Difficulty (Search Depth)</label>
                     <select
                       value={whiteAIDepth}
@@ -194,6 +214,21 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
                 <div className="ai-settings">
                   <div className="ai-header">
                     <h2>⚫ Black AI</h2>
+                  </div>
+                  
+                  <div className="ai-setting-group">
+                    <label>Engine Version</label>
+                    <select
+                      value={blackAIVersion}
+                      onChange={(e) => setBlackAIVersion(Number(e.target.value))}
+                      className="version-select"
+                    >
+                      <option value={1}>V1 - Alpha-Beta Pruning (Advanced)</option>
+                      <option value={2}>V2 - Simple Minimax (Castling Focused)</option>
+                    </select>
+                    <small className="help-text">
+                      V1 uses advanced search with alpha-beta pruning. V2 uses simple minimax with castling bonus.
+                    </small>
                   </div>
                   
                   <div className="ai-setting-group">

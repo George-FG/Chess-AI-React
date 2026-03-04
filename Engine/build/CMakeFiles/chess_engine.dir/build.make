@@ -100,10 +100,24 @@ CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.s"
 	/opt/homebrew/Cellar/emscripten/5.0.2/libexec/em++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/MinimaxEngine.cpp -o CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.s
 
+CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.o: CMakeFiles/chess_engine.dir/flags.make
+CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.o: /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/MinimaxEngineV2.cpp
+CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.o: CMakeFiles/chess_engine.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.o"
+	/opt/homebrew/Cellar/emscripten/5.0.2/libexec/em++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.o -MF CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.o.d -o CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.o -c /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/MinimaxEngineV2.cpp
+
+CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.i"
+	/opt/homebrew/Cellar/emscripten/5.0.2/libexec/em++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/MinimaxEngineV2.cpp > CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.i
+
+CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.s"
+	/opt/homebrew/Cellar/emscripten/5.0.2/libexec/em++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/MinimaxEngineV2.cpp -o CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.s
+
 CMakeFiles/chess_engine.dir/bridge.cpp.o: CMakeFiles/chess_engine.dir/flags.make
 CMakeFiles/chess_engine.dir/bridge.cpp.o: /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/bridge.cpp
 CMakeFiles/chess_engine.dir/bridge.cpp.o: CMakeFiles/chess_engine.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/chess_engine.dir/bridge.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/chess_engine.dir/bridge.cpp.o"
 	/opt/homebrew/Cellar/emscripten/5.0.2/libexec/em++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/chess_engine.dir/bridge.cpp.o -MF CMakeFiles/chess_engine.dir/bridge.cpp.o.d -o CMakeFiles/chess_engine.dir/bridge.cpp.o -c /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/bridge.cpp
 
 CMakeFiles/chess_engine.dir/bridge.cpp.i: cmake_force
@@ -118,6 +132,7 @@ CMakeFiles/chess_engine.dir/bridge.cpp.s: cmake_force
 chess_engine_OBJECTS = \
 "CMakeFiles/chess_engine.dir/Engine.cpp.o" \
 "CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.o" \
+"CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.o" \
 "CMakeFiles/chess_engine.dir/bridge.cpp.o"
 
 # External object files for target chess_engine
@@ -125,11 +140,12 @@ chess_engine_EXTERNAL_OBJECTS =
 
 /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/public/chess-engine.js: CMakeFiles/chess_engine.dir/Engine.cpp.o
 /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/public/chess-engine.js: CMakeFiles/chess_engine.dir/MinimaxEngine.cpp.o
+/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/public/chess-engine.js: CMakeFiles/chess_engine.dir/MinimaxEngineV2.cpp.o
 /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/public/chess-engine.js: CMakeFiles/chess_engine.dir/bridge.cpp.o
 /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/public/chess-engine.js: CMakeFiles/chess_engine.dir/build.make
 /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/public/chess-engine.js: CMakeFiles/chess_engine.dir/objects1.rsp
 /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/public/chess-engine.js: CMakeFiles/chess_engine.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX executable /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/public/chess-engine.js"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/Engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX executable /Users/gterry/Documents/GitHub/Mod2_Nov2025/_chess2/public/chess-engine.js"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/chess_engine.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

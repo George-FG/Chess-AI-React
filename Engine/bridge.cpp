@@ -2,6 +2,7 @@
 #include <emscripten/val.h>
 #include "Engine.h"
 #include "MinimaxEngine.h"
+#include "MinimaxEngineV2.h"
 #include <string>
 #include <sstream>
 
@@ -48,21 +49,37 @@ Color stringToColor(const std::string& str) {
 class ChessEngineWrapper {
 private:
     Board board_;
-    MinimaxEngine engine_;
+    MinimaxEngine engineV1_;
+    MinimaxEngineV2 engineV2_;
     CastlingRights castling_;
     std::vector<std::string> positionHistory_;
+    int engineVersion_; // 1 for V1, 2 for V2
+    bool whiteHasCastled_;
+    bool blackHasCastled_;
     
 public:
-    ChessEngineWrapper(int depth = 3) : engine_(depth) {
+    ChessEngineWrapper(int depth = 3, int version = 1) 
+        : engineV1_(depth), engineV2_(depth), engineVersion_(version),
+          whiteHasCastled_(false), blackHasCastled_(false) {
         board_.initializeStandardPosition();
     }
     
+    void setEngineVersion(int version) {
+        engineVersion_ = (version == 2) ? 2 : 1;
+    }
+    
+    int getEngineVersion() const {
+        return engineVersion_;
+    }
+    
     void setDepth(int depth) {
-        engine_.setDepth(depth);
+        engineV1_.setDepth(depth);
+        engineV2_.setDepth(depth);
     }
     
     void setMaxTime(int milliseconds) {
-        engine_.setMaxTime(milliseconds);
+        engineV1_.setMaxTime(milliseconds);
+        engineV2_.setMaxTime(milliseconds);
     }
     
     // Set board from JavaScript array
@@ -100,12 +117,31 @@ public:
     // Find best move and return as JavaScript object
     val findBestMove(const std::string& colorStr) {
         Color color = stringToColor(colorStr);
-        Move bestMove = engine_.findBestMove(board_, color, castling_, positionHistory_);
+        Move bestMove;
+        
+        // Use the appropriate engine version
+        if (engineVersion_ == 2) {
+            bestMove = engineV2_.findBestMove(board_, color, castling_, positionHistory_,
+                                              whiteHasCastled_, blackHasCastled_);
+        } else {
+            bestMove = engineV1_.findBestMove(board_, color, castling_, positionHistory_);
+        }
+        
+        // Track if this move is a castling move
+        if (bestMove.isCastling) {
+            if (color == Color::WHITE) {
+                whiteHasCastled_ = true;
+            } else {
+                blackHasCastled_ = true;
+            }
+        }
         
         // Update position history after move
         Board newBoard = board_.clone();
         newBoard.applyMove(bestMove);
-        std::string newPosHash = MinimaxEngine::getPositionHash(newBoard);
+        std::string newPosHash = (engineVersion_ == 2) 
+            ? MinimaxEngineV2::getPositionHash(newBoard)
+            : MinimaxEngine::getPositionHash(newBoard);
         positionHistory_.push_back(newPosHash);
         
         // Keep only last 16 positions to avoid unbounded growth
@@ -161,11 +197,15 @@ public:
         board_.initializeStandardPosition();
         castling_ = CastlingRights();
         positionHistory_.clear();
+        whiteHasCastled_ = false;
+        blackHasCastled_ = false;
     }
     
     // Clear position history (for new games)
     void clearHistory() {
         positionHistory_.clear();
+        whiteHasCastled_ = false;
+        blackHasCastled_ = false;
     }
 };
 
@@ -174,6 +214,9 @@ EMSCRIPTEN_BINDINGS(chess_engine) {
     class_<ChessEngineWrapper>("ChessEngine")
         .constructor<>()
         .constructor<int>()
+        .constructor<int, int>()
+        .function("setEngineVersion", &ChessEngineWrapper::setEngineVersion)
+        .function("getEngineVersion", &ChessEngineWrapper::getEngineVersion)
         .function("setDepth", &ChessEngineWrapper::setDepth)
         .function("setMaxTime", &ChessEngineWrapper::setMaxTime)
         .function("setBoardFromArray", &ChessEngineWrapper::setBoardFromArray)

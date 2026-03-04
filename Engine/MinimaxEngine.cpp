@@ -1,539 +1,467 @@
 #include "MinimaxEngine.h"
 #include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <limits>
+#include <string>
+#include <unordered_map>
 
 namespace Chess {
 
-// Piece values for evaluation
+// ============================
+// PIECE-SQUARE TABLES
+// From Simplified Evaluation Function & PeSTO
+// ============================
+
+// Pawn PST (opening/middlegame)
+static const int PAWN_PST_MG[64] = {
+      0,   0,   0,   0,   0,   0,  0,   0,
+     98, 134,  61,  95,  68, 126, 34, -11,
+     -6,   7,  26,  31,  65,  56, 25, -20,
+    -14,  13,   6,  21,  23,  12, 17, -23,
+    -27,  -2,  -5,  12,  17,   6, 10, -25,
+    -26,  -4,  -4, -10,   3,   3, 33, -12,
+    -35,  -1, -20, -23, -15,  24, 38, -22,
+      0,   0,   0,   0,   0,   0,  0,   0,
+};
+
+// Pawn PST (endgame)
+static const int PAWN_PST_EG[64] = {
+      0,   0,   0,   0,   0,   0,   0,   0,
+    178, 173, 158, 134, 147, 132, 165, 187,
+     94, 100,  85,  67,  56,  53,  82,  84,
+     32,  24,  13,   5,  -2,   4,  17,  17,
+     13,   9,  -3,  -7,  -7,  -8,   3,  -1,
+      4,   7,  -6,   1,   0,  -5,  -1,  -8,
+     13,   8,   8,  10,  13,   0,   2,  -7,
+      0,   0,   0,   0,   0,   0,   0,   0,
+};
+
+// Knight PST (opening/middlegame)
+static const int KNIGHT_PST_MG[64] = {
+    -167, -89, -34, -49,  61, -97, -15, -107,
+     -73, -41,  72,  36,  23,  62,   7,  -17,
+     -47,  60,  37,  65,  84, 129,  73,   44,
+      -9,  17,  19,  53,  37,  69,  18,   22,
+     -13,   4,  16,  13,  28,  19,  21,   -8,
+     -23,  -9,  12,  10,  19,  17,  25,  -16,
+     -29, -53, -12,  -3,  -1,  18, -14,  -19,
+    -105, -21, -58, -33, -17, -28, -19,  -23,
+};
+
+// Knight PST (endgame)
+static const int KNIGHT_PST_EG[64] = {
+    -58, -38, -13, -28, -31, -27, -63, -99,
+    -25,  -8, -25,  -2,  -9, -25, -24, -52,
+    -24, -20,  10,   9,  -1,  -9, -19, -41,
+    -17,   3,  22,  22,  22,  11,   8, -18,
+    -18,  -6,  16,  25,  16,  17,   4, -18,
+    -23,  -3,  -1,  15,  10,  -3, -20, -22,
+    -42, -20, -10,  -5,  -2, -20, -23, -44,
+    -29, -51, -23, -15, -22, -18, -50, -64,
+};
+
+// Bishop PST (opening/middlegame)
+static const int BISHOP_PST_MG[64] = {
+    -29,   4, -82, -37, -25, -42,   7,  -8,
+    -26,  16, -18, -13,  30,  59,  18, -47,
+    -16,  37,  43,  40,  35,  50,  37,  -2,
+     -4,   5,  19,  50,  37,  37,   7,  -2,
+     -6,  13,  13,  26,  34,  12,  10,   4,
+      0,  15,  15,  15,  14,  27,  18,  10,
+      4,  15,  16,   0,   7,  21,  33,   1,
+    -33,  -3, -14, -21, -13, -12, -39, -21,
+};
+
+// Bishop PST (endgame)
+static const int BISHOP_PST_EG[64] = {
+    -14, -21, -11,  -8, -7,  -9, -17, -24,
+     -8,  -4,   7, -12, -3, -13,  -4, -14,
+      2,  -8,   0,  -1, -2,   6,   0,   4,
+     -3,   9,  12,   9, 14,  10,   3,   2,
+     -6,   3,  13,  19,  7,  10,  -3,  -9,
+    -12,  -3,   8,  10, 13,   3,  -7, -15,
+    -14, -18,  -7,  -1,  4,  -9, -15, -27,
+    -23,  -9, -23,  -5, -9, -16,  -5, -17,
+};
+
+// Rook PST (opening/middlegame)
+static const int ROOK_PST_MG[64] = {
+     32,  42,  32,  51, 63,  9,  31,  43,
+     27,  32,  58,  62, 80, 67,  26,  44,
+     -5,  19,  26,  36, 17, 45,  61,  16,
+    -24, -11,   7,  26, 24, 35,  -8, -20,
+    -36, -26, -12,  -1,  9, -7,   6, -23,
+    -45, -25, -16, -17,  3,  0,  -5, -33,
+    -44, -16, -20,  -9, -1, 11,  -6, -71,
+    -19, -13,   1,  17, 16,  7, -37, -26,
+};
+
+// Rook PST (endgame)
+static const int ROOK_PST_EG[64] = {
+    13, 10, 18, 15, 12,  12,   8,   5,
+    11, 13, 13, 11, -3,   3,   8,   3,
+     7,  7,  7,  5,  4,  -3,  -5,  -3,
+     4,  3, 13,  1,  2,   1,  -1,   2,
+     3,  5,  8,  4, -5,  -6,  -8, -11,
+    -4,  0, -5, -1, -7, -12,  -8, -16,
+    -6, -6,  0,  2, -9,  -9, -11,  -3,
+    -9,  2,  3, -1, -5, -13,   4, -20,
+};
+
+// Queen PST (opening/middlegame)
+static const int QUEEN_PST_MG[64] = {
+    -28,   0,  29,  12,  59,  44,  43,  45,
+    -24, -39,  -5,   1, -16,  57,  28,  54,
+    -13, -17,   7,   8,  29,  56,  47,  57,
+    -27, -27, -16, -16,  -1,  17,  -2,   1,
+     -9, -26,  -9, -10,  -2,  -4,   3,  -3,
+    -14,   2, -11,  -2,  -5,   2,  14,   5,
+    -35,  -8,  11,   2,   8,  15,  -3,   1,
+     -1, -18,  -9,  10, -15, -25, -31, -50,
+};
+
+// Queen PST (endgame)
+static const int QUEEN_PST_EG[64] = {
+     -9,  22,  22,  27,  27,  19,  10,  20,
+    -17,  20,  32,  41,  58,  25,  30,   0,
+    -20,   6,   9,  49,  47,  35,  19,   9,
+      3,  22,  24,  45,  57,  40,  57,  36,
+    -18,  28,  19,  47,  31,  34,  39,  23,
+    -16, -27,  15,   6,   9,  17,  10,   5,
+    -22, -23, -30, -16, -16, -23, -36, -32,
+    -33, -28, -22, -43,  -5, -32, -20, -41,
+};
+
+// King PST (opening/middlegame)
+static const int KING_PST_MG[64] = {
+    -65,  23,  16, -15, -56, -34,   2,  13,
+     29,  -1, -20,  -7,  -8,  -4, -38, -29,
+     -9,  24,   2, -16, -20,   6,  22, -22,
+    -17, -20, -12, -27, -30, -25, -14, -36,
+    -49,  -1, -27, -39, -46, -44, -33, -51,
+    -14, -14, -22, -46, -44, -30, -15, -27,
+      1,   7,  -8, -64, -43, -16,   9,   8,
+    -15,  36,  12, -54,   8, -28,  24,  14,
+};
+
+// King PST (endgame)
+static const int KING_PST_EG[64] = {
+    -74, -35, -18, -18, -11,  15,   4, -17,
+    -12,  17,  14,  17,  17,  38,  23,  11,
+     10,  17,  23,  15,  20,  45,  44,  13,
+     -8,  22,  24,  27,  26,  33,  26,   3,
+    -18,  -4,  21,  24,  27,  23,   9, -11,
+    -19,  -3,  11,  21,  23,  16,   7,  -9,
+    -27, -11,   4,  13,  14,   4,  -5, -17,
+    -53, -34, -21, -11, -28, -14, -24, -43
+};
+
+// ============================
+// GAME PHASE CALCULATION
+// ============================
+static int computeGamePhase(const Board& board) {
+    // Calculate phase based on remaining material
+    // Phase: 0 = endgame, 256 = opening
+    int phase = 0;
+    
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece p = board.getPiece(Position(r, c));
+            if (p.isEmpty()) continue;
+            
+            switch (p.type) {
+                case PieceType::PAWN:   break; // Pawns don't affect phase
+                case PieceType::KNIGHT: phase += 1; break;
+                case PieceType::BISHOP: phase += 1; break;
+                case PieceType::ROOK:   phase += 2; break;
+                case PieceType::QUEEN:  phase += 4; break;
+                default: break;
+            }
+        }
+    }
+    
+    // Scale to 0-256 (max phase is 24 = 4 knights + 4 bishops + 4 rooks + 2 queens)
+    return std::min(256, (phase * 256 + 12) / 24);
+}
+
+// Tapered eval: interpolate between middlegame and endgame scores
+static int taperedEval(int mg, int eg, int phase) {
+    return ((mg * phase) + (eg * (256 - phase))) / 256;
+}
+
+// ============================
+// PST LOOKUP (with color flip for black)
+// ============================
+static int getPST(PieceType type, Position pos, Color color, bool isEndgame) {
+    // Flip position for black (they see board upside down)
+    int sq = (color == Color::WHITE) ? (pos.row * 8 + pos.col) : ((7 - pos.row) * 8 + pos.col);
+    
+    if (isEndgame) {
+        switch (type) {
+            case PieceType::PAWN:   return PAWN_PST_EG[sq];
+            case PieceType::KNIGHT: return KNIGHT_PST_EG[sq];
+            case PieceType::BISHOP: return BISHOP_PST_EG[sq];
+            case PieceType::ROOK:   return ROOK_PST_EG[sq];
+            case PieceType::QUEEN:  return QUEEN_PST_EG[sq];
+            case PieceType::KING:   return KING_PST_EG[sq];
+            default: return 0;
+        }
+    } else {
+        switch (type) {
+            case PieceType::PAWN:   return PAWN_PST_MG[sq];
+            case PieceType::KNIGHT: return KNIGHT_PST_MG[sq];
+            case PieceType::BISHOP: return BISHOP_PST_MG[sq];
+            case PieceType::ROOK:   return ROOK_PST_MG[sq];
+            case PieceType::QUEEN:  return QUEEN_PST_MG[sq];
+            case PieceType::KING:   return KING_PST_MG[sq];
+            default: return 0;
+        }
+    }
+}
+
+// ============================
+// EVALUATOR
+// ============================
+
 const int Evaluator::PIECE_VALUES[7] = {
     100,  // PAWN
     320,  // KNIGHT
     330,  // BISHOP
     500,  // ROOK
     900,  // QUEEN
-    0,    // KING
+    20000,// KING
     0     // NONE
 };
 
-// Check if we're in the opening phase (roughly first 15 moves)
-bool Evaluator::isInOpeningPhase(int moveCount) {
-    return moveCount < 15;
-}
-
-// Evaluate piece development for opening
-int Evaluator::evaluatePieceDevelopment(const Board& board, Color color) {
-    int score = 0;
-    int backRank = (color == Color::WHITE) ? 0 : 7;
-    int pawnRank = (color == Color::WHITE) ? 1 : 6;
+// Main evaluation function
+int Evaluator::evaluate(const Board& board, Color aiColor, const CastlingRights& castling, int moveCount) {
+    Color oppColor = (aiColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
     
-    // Check knights - should move off back rank
-    Piece knight1 = board.getPiece(Position(backRank, 1));
-    Piece knight2 = board.getPiece(Position(backRank, 6));
+    int phase = computeGamePhase(board);
+    bool isEarly = (moveCount < 10);
+    bool isLate = (phase < 64); // Entering endgame
     
-    if (knight1.type == PieceType::KNIGHT && knight1.color == color) {
-        score -= 30; // Penalty for knight still on back rank
-    } else {
-        score += 25; // Bonus for developing knight
+    int mgScore[2] = {0, 0}; // [WHITE, BLACK]
+    int egScore[2] = {0, 0};
+    
+    // Material + PST
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece p = board.getPiece(Position(r, c));
+            if (p.isEmpty()) continue;
+            
+            int colorIdx = (p.color == Color::WHITE) ? 0 : 1;
+            int material = PIECE_VALUES[static_cast<int>(p.type)];
+            
+            int pstMG = getPST(p.type, Position(r, c), p.color, false);
+            int pstEG = getPST(p.type, Position(r, c), p.color, true);
+            
+            mgScore[colorIdx] += material + pstMG;
+            egScore[colorIdx] += material + pstEG;
+        }
     }
     
-    if (knight2.type == PieceType::KNIGHT && knight2.color == color) {
-        score -= 30;
-    } else {
-        score += 25;
-    }
-    
-    // Check bishops - should move off back rank
-    Piece bishop1 = board.getPiece(Position(backRank, 2));
-    Piece bishop2 = board.getPiece(Position(backRank, 5));
-    
-    if (bishop1.type == PieceType::BISHOP && bishop1.color == color) {
-        score -= 25;
-    } else {
-        score += 20;
-    }
-    
-    if (bishop2.type == PieceType::BISHOP && bishop2.color == color) {
-        score -= 25;
-    } else {
-        score += 20;
-    }
-    
-    // Penalty for queen moving in opening (develops too early)
-    Piece queenHome = board.getPiece(Position(backRank, 4));
-    if (queenHome.isEmpty() || queenHome.type != PieceType::QUEEN || queenHome.color != color) {
-        // Find queen elsewhere
-        for (int row = 0; row < 8; row++) {
-            for (int col = 0; col < 8; col++) {
-                Piece p = board.getPiece(Position(row, col));
-                if (p.type == PieceType::QUEEN && p.color == color && row != backRank) {
-                    score -= 40; // Penalty for moving queen in opening
-                    break;
+    // Pawn structure bonuses
+    for (int c = 0; c < 8; c++) {
+        int whitePawns = 0, blackPawns = 0;
+        for (int r = 0; r < 8; r++) {
+            Piece p = board.getPiece(Position(r, c));
+            if (p.type == PieceType::PAWN) {
+                if (p.color == Color::WHITE) whitePawns++;
+                else blackPawns++;
+            }
+        }
+        
+        // Doubled pawns penalty
+        if (whitePawns > 1) {
+            mgScore[0] -= 10 * (whitePawns - 1);
+            egScore[0] -= 20 * (whitePawns - 1);
+        }
+        if (blackPawns > 1) {
+            mgScore[1] -= 10 * (blackPawns - 1);
+            egScore[1] -= 20 * (blackPawns - 1);
+        }
+        
+        // Isolated pawns
+        bool whiteIsolated = (whitePawns > 0);
+        bool blackIsolated = (blackPawns > 0);
+        
+        if (c > 0) {
+            for (int r = 0; r < 8; r++) {
+                Piece p = board.getPiece(Position(r, c - 1));
+                if (p.type == PieceType::PAWN) {
+                    if (p.color == Color::WHITE) whiteIsolated = false;
+                    if (p.color == Color::BLACK) blackIsolated = false;
                 }
             }
         }
-    }
-    
-    // Bonus for center pawn development
-    Piece centerPawn1 = board.getPiece(Position(pawnRank, 3));
-    Piece centerPawn2 = board.getPiece(Position(pawnRank, 4));
-    
-    if (centerPawn1.isEmpty() || centerPawn1.type != PieceType::PAWN || centerPawn1.color != color) {
-        score += 15; // Center pawn moved
-    }
-    if (centerPawn2.isEmpty() || centerPawn2.type != PieceType::PAWN || centerPawn2.color != color) {
-        score += 15; // Center pawn moved
-    }
-    
-    return score;
-}
-
-// Check if we're in the endgame (few pieces left)
-bool Evaluator::isInEndgame(const Board& board) {
-    int totalMaterial = 0;
-    
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            Piece piece = board.getPiece(Position(row, col));
-            if (!piece.isEmpty() && piece.type != PieceType::KING && piece.type != PieceType::PAWN) {
-                totalMaterial += PIECE_VALUES[static_cast<int>(piece.type)];
+        if (c < 7) {
+            for (int r = 0; r < 8; r++) {
+                Piece p = board.getPiece(Position(r, c + 1));
+                if (p.type == PieceType::PAWN) {
+                    if (p.color == Color::WHITE) whiteIsolated = false;
+                    if (p.color == Color::BLACK) blackIsolated = false;
+                }
             }
         }
-    }
-    
-    // Endgame if less than 1300 material (roughly Queen + minor piece or less per side)
-    // This catches pawn endgames and low piece endgames
-    return totalMaterial < 1300;
-}
-
-// Count total material for a color
-int Evaluator::countMaterial(const Board& board, Color color) {
-    int material = 0;
-    
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            Piece piece = board.getPiece(Position(row, col));
-            if (piece.color == color && !piece.isEmpty()) {
-                material += PIECE_VALUES[static_cast<int>(piece.type)];
-            }
-        }
-    }
-    
-    return material;
-}
-
-// Check if a pawn is passed (no enemy pawns in front or on adjacent files)
-bool Evaluator::isPassedPawn(const Board& board, Position pawnPos, Color pawnColor) {
-    int direction = (pawnColor == Color::WHITE) ? -1 : 1; // White moves up (row--), Black moves down (row++)
-    
-    // Check three files: current, left, and right
-    for (int fileOffset = -1; fileOffset <= 1; fileOffset++) {
-        int checkCol = pawnPos.col + fileOffset;
-        if (checkCol < 0 || checkCol >= 8) continue;
         
-        // Check all squares ahead of the pawn on this file
-        for (int row = pawnPos.row + direction; row >= 0 && row < 8; row += direction) {
-            Piece piece = board.getPiece(Position(row, checkCol));
-            if (piece.type == PieceType::PAWN && piece.color != pawnColor) {
-                return false; // Enemy pawn blocking
-            }
+        if (whiteIsolated && whitePawns > 0) {
+            mgScore[0] -= 15;
+            egScore[0] -= 20;
+        }
+        if (blackIsolated && blackPawns > 0) {
+            mgScore[1] -= 15;
+            egScore[1] -= 20;
         }
     }
     
-    return true; // No enemy pawns blocking - it's passed!
-}
-
-// Evaluate king activity in endgame
-int Evaluator::evaluateKingActivity(const Board& board, Color color, bool isEndgame) {
-    if (!isEndgame) return 0;
+    // Mobility (simplified - count available moves)
+    std::vector<Move> whiteMoves = MoveGenerator::generateMoves(board, Color::WHITE, castling);
+    std::vector<Move> blackMoves = MoveGenerator::generateMoves(board, Color::BLACK, castling);
     
-    int score = 0;
-    Position kingPos(-1, -1);
+    mgScore[0] += whiteMoves.size() * 2;
+    mgScore[1] += blackMoves.size() * 2;
+    egScore[0] += whiteMoves.size() * 3;
+    egScore[1] += blackMoves.size() * 3;
     
-    // Find king
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            Piece piece = board.getPiece(Position(row, col));
-            if (piece.type == PieceType::KING && piece.color == color) {
-                kingPos = Position(row, col);
+    // Bishop pair bonus
+    int whiteBishops = 0, blackBishops = 0;
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece p = board.getPiece(Position(r, c));
+            if (p.type == PieceType::BISHOP) {
+                if (p.color == Color::WHITE) whiteBishops++;
+                else blackBishops++;
+            }
+        }
+    }
+    if (whiteBishops >= 2) {
+        mgScore[0] += 30;
+        egScore[0] += 50;
+    }
+    if (blackBishops >= 2) {
+        mgScore[1] += 30;
+        egScore[1] += 50;
+    }
+    
+    // Rook on open file bonus
+    for (int c = 0; c < 8; c++) {
+        bool hasPawn = false;
+        for (int r = 0; r < 8; r++) {
+            Piece p = board.getPiece(Position(r, c));
+            if (p.type == PieceType::PAWN) {
+                hasPawn = true;
                 break;
             }
         }
-        if (kingPos.isValid()) break;
-    }
-    
-    if (!kingPos.isValid()) return 0;
-    
-    // Centralization bonus - king should be active in center
-    int centerDistance = abs(kingPos.row - 3.5) + abs(kingPos.col - 3.5);
-    score += (7 - centerDistance) * 5; // Max +35 for being in center
-    
-    // Bonus for being near own pawns (supporting promotion)
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            Piece piece = board.getPiece(Position(row, col));
-            if (piece.type == PieceType::PAWN && piece.color == color) {
-                int distance = abs(row - kingPos.row) + abs(col - kingPos.col);
-                if (distance <= 2) {
-                    score += 20; // King near own pawn - good support
-                }
-            }
-            // Penalty for being far from enemy pawns we should be blocking
-            if (piece.type == PieceType::PAWN && piece.color != color) {
-                int distance = abs(row - kingPos.row) + abs(col - kingPos.col);
-                if (distance <= 2) {
-                    score += 15; // King near enemy pawn - good blockade
+        
+        if (!hasPawn) {
+            for (int r = 0; r < 8; r++) {
+                Piece p = board.getPiece(Position(r, c));
+                if (p.type == PieceType::ROOK) {
+                    if (p.color == Color::WHITE) {
+                        mgScore[0] += 20;
+                        egScore[0] += 20;
+                    } else {
+                        mgScore[1] += 20;
+                        egScore[1] += 20;
+                    }
                 }
             }
         }
     }
+    
+    // Tempo bonus (side to move)
+    int tempo = 10;
+    
+    // Taper evaluation
+    int whiteFinal = taperedEval(mgScore[0], egScore[0], phase);
+    int blackFinal = taperedEval(mgScore[1], egScore[1], phase);
+    
+    // Return from AI's perspective
+    int score = (aiColor == Color::WHITE) ? 
+                (whiteFinal - blackFinal + tempo) : 
+                (blackFinal - whiteFinal + tempo);
     
     return score;
 }
 
-// Comprehensive endgame evaluation
-int Evaluator::evaluateEndgame(const Board& board, Color aiColor) {
-    int score = 0;
-    Color opponentColor = (aiColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
-    
-    int myMaterial = countMaterial(board, aiColor);
-    int oppMaterial = countMaterial(board, opponentColor);
-    bool winningPosition = myMaterial > oppMaterial + 300;
-    
-    // 1. PAWN PROMOTION STRATEGY
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            Piece piece = board.getPiece(Position(row, col));
-            if (piece.type != PieceType::PAWN) continue;
-            
-            int advancement = (piece.color == Color::WHITE) ? (7 - row) : row;
-            
-            if (piece.color == aiColor) {
-                // Our pawns - push them!
-                // Quadratic bonus for advancement
-                score += advancement * advancement * 5; // 0, 5, 20, 45, 80, 125, 180, 245
-                
-                // Check if it's a passed pawn
-                if (isPassedPawn(board, Position(row, col), piece.color)) {
-                    // MASSIVE bonus for passed pawns
-                    score += 50 + advancement * 25; // 50-225 bonus
-                    
-                    // Extra bonus if close to promotion
-                    if (advancement >= 5) {
-                        score += 100; // On 6th or 7th rank - HUGE
-                    }
-                    
-                    // Check if king is supporting the pawn
-                    for (int kr = 0; kr < 8; kr++) {
-                        for (int kc = 0; kc < 8; kc++) {
-                            Piece king = board.getPiece(Position(kr, kc));
-                            if (king.type == PieceType::KING && king.color == aiColor) {
-                                int dist = abs(kr - row) + abs(kc - col);
-                                if (dist <= 2) {
-                                    score += 30; // King supporting passed pawn
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                // Opponent pawns - block them!
-                // Check if it's a passed pawn
-                if (isPassedPawn(board, Position(row, col), piece.color)) {
-                    // PENALTY for opponent's passed pawns
-                    score -= 100 + advancement * 30; // -100 to -310
-                    
-                    // CRITICAL if close to promotion
-                    if (advancement >= 5) {
-                        score -= 200; // Stop this immediately!
-                    }
-                }
-            }
-        }
-    }
-    
-    // 2. KING ACTIVITY
-    score += evaluateKingActivity(board, aiColor, true);
-    score -= evaluateKingActivity(board, opponentColor, true);
-    
-    // 3. PIECE ACTIVITY - get pieces close to enemy king for checkmate
-    if (winningPosition) {
-        // Find enemy king
-        Position enemyKingPos(-1, -1);
-        for (int row = 0; row < 8; row++) {
-            for (int col = 0; col < 8; col++) {
-                Piece piece = board.getPiece(Position(row, col));
-                if (piece.type == PieceType::KING && piece.color == opponentColor) {
-                    enemyKingPos = Position(row, col);
-                    break;
-                }
-            }
-            if (enemyKingPos.isValid()) break;
-        }
-        
-        if (enemyKingPos.isValid()) {
-            // Reward pieces for being close to enemy king
-            for (int row = 0; row < 8; row++) {
-                for (int col = 0; col < 8; col++) {
-                    Piece piece = board.getPiece(Position(row, col));
-                    if (piece.isEmpty() || piece.color != aiColor) continue;
-                    
-                    int distance = abs(row - enemyKingPos.row) + abs(col - enemyKingPos.col);
-                    
-                    switch (piece.type) {
-                        case PieceType::QUEEN:
-                            score += (14 - distance) * 8; // Queens hunt kings
-                            break;
-                        case PieceType::ROOK:
-                            score += (14 - distance) * 5; // Rooks cut off escape
-                            break;
-                        case PieceType::BISHOP:
-                        case PieceType::KNIGHT:
-                            score += (14 - distance) * 3; // Minors support
-                            break;
-                        case PieceType::KING:
-                            score += (14 - distance) * 6; // Our king helps deliver mate
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            }
-        }
-    }
-    
-    // 4. SIMPLIFIED MATERIAL VALUES - pawns more valuable, knights less
-    int pawnCount = 0;
-    int knightCount = 0;
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            Piece piece = board.getPiece(Position(row, col));
-            if (piece.isEmpty()) continue;
-            
-            if (piece.color == aiColor) {
-                if (piece.type == PieceType::PAWN) pawnCount++;
-                if (piece.type == PieceType::KNIGHT) knightCount--;
-            } else {
-                if (piece.type == PieceType::PAWN) pawnCount--;
-                if (piece.type == PieceType::KNIGHT) knightCount++;
-            }
-        }
-    }
-    score += pawnCount * 20; // Pawns worth more in endgame
-    score += knightCount * 15; // Knights worth less in endgame
-    
-    return score;
+bool Evaluator::isInOpeningPhase(int moveCount) {
+    return moveCount < 12;
 }
 
-// Evaluator implementation
-int Evaluator::evaluate(const Board& board, Color aiColor, const CastlingRights& castling, int moveCount) {
-    Color opponentColor = (aiColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
-    bool isOpening = isInOpeningPhase(moveCount);
-    
-    int myScore = 0;
-    int opponentScore = 0;
-    
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            Piece piece = board.getPiece(Position(row, col));
-            
-            if (piece.isEmpty()) continue;
-            
-            int value = PIECE_VALUES[static_cast<int>(piece.type)];
-            
-            if (piece.color == aiColor) {
-                myScore += value;
-                
-                // Positional bonuses for pawns
-                if (piece.type == PieceType::PAWN) {
-                    // tableRow = how far the pawn has advanced from its home rank perspective (0..7)
-                    int tableRow = (aiColor == Color::WHITE) ? (7 - row) : row;
-                    bool isCenterPawn = (col == 3 || col == 4);
-                    
-                    if (isCenterPawn) {
-                        if (tableRow == 2) myScore += 2;
-                        else if (tableRow == 3) myScore += 5;
-                        else if (tableRow == 4) myScore += 8;
-                    }
-                    
-                    if (tableRow >= 5) {
-                        myScore += tableRow * 3;
-                    }
-                }
-            } else {
-                opponentScore += value;
-                
-                // Positional bonuses for opponent pawns
-                if (piece.type == PieceType::PAWN) {
-                    // tableRow = how far the pawn has advanced from its home rank perspective (0..7)
-                    int tableRow = (opponentColor == Color::WHITE) ? (7 - row) : row;
-                    bool isCenterPawn = (col == 3 || col == 4);
-                    
-                    if (isCenterPawn) {
-                        if (tableRow == 2) opponentScore += 2;
-                        else if (tableRow == 3) opponentScore += 5;
-                        else if (tableRow == 4) opponentScore += 8;
-                    }
-                    
-                    if (tableRow >= 5) {
-                        opponentScore += tableRow * 3;
-                    }
-                }
-            }
-        }
-    }
-    
-    // King safety evaluation: strongly favor castling and penalize premature king moves
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            Piece piece = board.getPiece(Position(row, col));
-            if (piece.type == PieceType::KING) {
-                // Most common representation: row 0 is Black's home rank (8th rank),
-                // row 7 is White's home rank (1st rank).
-                int backRank = (piece.color == Color::WHITE) ? 7 : 0;
-                
-                if (piece.color == aiColor) {
-                    if (row == backRank) {
-                        // King is on back rank
-                        if (col == 6 || col == 2) {
-                            // King has castled - HUGE bonus
-                            myScore += 150;
-                        } else if (col == 4) {
-                            // King still on starting square - neutral/small penalty for not castling yet
-                            myScore -= 10;
-                        } else {
-                            // King moved but didn't castle - LARGE penalty (unless avoiding check)
-                            myScore -= 80;
-                        }
-                    } else {
-                        // King moved off back rank - MASSIVE penalty (very dangerous)
-                        myScore -= 100;
-                    }
-                } else {
-                    // Opponent king evaluation (same logic)
-                    if (row == backRank) {
-                        if (col == 6 || col == 2) {
-                            opponentScore += 150;
-                        } else if (col == 4) {
-                            opponentScore -= 10;
-                        } else {
-                            opponentScore -= 80;
-                        }
-                    } else {
-                        opponentScore -= 100;
-                    }
-                }
-            }
-        }
-    }
-    
-    // Check if we're in endgame
-    bool inEndgame = isInEndgame(board);
-    
-    // Opening phase bonuses
-    if (isOpening) {
-        int myDevelopment = evaluatePieceDevelopment(board, aiColor);
-        int opponentDevelopment = evaluatePieceDevelopment(board, opponentColor);
-        
-        myScore += myDevelopment;
-        opponentScore += opponentDevelopment;
-        
-        // Extra bonus for castling in opening - CASTLE AS SOON AS POSSIBLE
-        Piece myKing = board.getPiece(Position((aiColor == Color::WHITE) ? 0 : 7, 3));
-        if (myKing.isEmpty() || myKing.type != PieceType::KING) {
-            // King has moved - check if it castled
-            int backRank = (aiColor == Color::WHITE) ? 0 : 7;
-            Piece kingPos1 = board.getPiece(Position(backRank, 6));
-            Piece kingPos2 = board.getPiece(Position(backRank, 2));
-            
-            if ((kingPos1.type == PieceType::KING && kingPos1.color == aiColor) ||
-                (kingPos2.type == PieceType::KING && kingPos2.color == aiColor)) {
-                myScore += 200; // MASSIVE bonus for castling in opening
-            }
-        }
-        
-        // Same for opponent
-        Piece oppKing = board.getPiece(Position((opponentColor == Color::WHITE) ? 0 : 7, 3));
-        if (oppKing.isEmpty() || oppKing.type != PieceType::KING) {
-            int backRank = (opponentColor == Color::WHITE) ? 0 : 7;
-            Piece kingPos1 = board.getPiece(Position(backRank, 6));
-            Piece kingPos2 = board.getPiece(Position(backRank, 2));
-            
-            if ((kingPos1.type == PieceType::KING && kingPos1.color == opponentColor) ||
-                (kingPos2.type == PieceType::KING && kingPos2.color == opponentColor)) {
-                opponentScore += 200;
-            }
-        }
-    }
-    
-    // Castling rights evaluation: having the ability to castle is valuable
-    // Give bonus for having castling rights AVAILABLE (not yet used)
-    if (aiColor == Color::WHITE) {
-        // Check if king is still on starting square (hasn't castled or moved)
-        Piece kingPiece = board.getPiece(Position(7, 4));
-        if (kingPiece.type == PieceType::KING && kingPiece.color == Color::WHITE) {
-            // King hasn't moved yet, value having castling rights
-            if (castling.whiteKingSide) myScore += 40;  // Can castle kingside
-            if (castling.whiteQueenSide) myScore += 40; // Can castle queenside
-        }
-    } else {
-        // Black's turn
-        Piece kingPiece = board.getPiece(Position(0, 4));
-        if (kingPiece.type == PieceType::KING && kingPiece.color == Color::BLACK) {
-            if (castling.blackKingSide) myScore += 40;
-            if (castling.blackQueenSide) myScore += 40;
-        }
-    }
-    
-    // Same for opponent (we want to preserve our options, they theirs)
-    if (opponentColor == Color::WHITE) {
-        Piece kingPiece = board.getPiece(Position(7, 4));
-        if (kingPiece.type == PieceType::KING && kingPiece.color == Color::WHITE) {
-            if (castling.whiteKingSide) opponentScore += 40;
-            if (castling.whiteQueenSide) opponentScore += 40;
-        }
-    } else {
-        Piece kingPiece = board.getPiece(Position(0, 4));
-        if (kingPiece.type == PieceType::KING && kingPiece.color == Color::BLACK) {
-            if (castling.blackKingSide) opponentScore += 40;
-            if (castling.blackQueenSide) opponentScore += 40;
-        }
-    }
-    
-    // ENDGAME PHASE - comprehensive endgame evaluation
-    if (inEndgame) {
-        int endgameScore = evaluateEndgame(board, aiColor);
-        return myScore - opponentScore + endgameScore;
-    }
-    
-    return myScore - opponentScore;
+bool Evaluator::isInEndgame(const Board& board) {
+    return computeGamePhase(board) < 64;
 }
 
-// MinimaxEngine implementation
-MinimaxEngine::MinimaxEngine(int depth) : depth_(depth), maxTime_(0), timeExpired_(false), moveCount_(0) {}
-
-void MinimaxEngine::setDepth(int depth) {
-    depth_ = depth;
+int Evaluator::countMaterial(const Board& board, Color color) {
+    int material = 0;
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece p = board.getPiece(Position(r, c));
+            if (p.color == color && !p.isEmpty()) {
+                material += PIECE_VALUES[static_cast<int>(p.type)];
+            }
+        }
+    }
+    return material;
 }
 
-void MinimaxEngine::setMaxTime(int milliseconds) {
-    maxTime_ = milliseconds;
-}
+// Stub implementations for compatibility
+int Evaluator::evaluatePieceDevelopment(const Board&, Color) { return 0; }
+int Evaluator::evaluateEndgame(const Board&, Color) { return 0; }
+bool Evaluator::isPassedPawn(const Board&, Position, Color) { return false; }
+int Evaluator::evaluateKingActivity(const Board&, Color, bool) { return 0; }
+
+// ============================
+// MINIMAX ENGINE
+// ============================
+
+MinimaxEngine::MinimaxEngine(int depth)
+    : depth_(depth), maxTime_(0), timeExpired_(false), moveCount_(0) {}
+
+void MinimaxEngine::setDepth(int depth) { depth_ = depth; }
+void MinimaxEngine::setMaxTime(int milliseconds) { maxTime_ = milliseconds; }
 
 bool MinimaxEngine::isTimeExpired() const {
-    if (maxTime_ <= 0) return false; // No time limit
-    
+    if (maxTime_ <= 0) return false;
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - searchStartTime_
     ).count();
-    
     return elapsed >= maxTime_;
 }
 
-CastlingRights MinimaxEngine::updateCastlingRights(
-    const CastlingRights& rights, const Move& move, const Board& board) {
-    
+std::string MinimaxEngine::getPositionHash(const Board& board) {
+    std::string hash;
+    hash.reserve(64);
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece p = board.getPiece(Position(r, c));
+            if (p.isEmpty()) {
+                hash += '.';
+            } else {
+                char ch = '?';
+                switch (p.type) {
+                    case PieceType::PAWN:   ch = 'p'; break;
+                    case PieceType::KNIGHT: ch = 'n'; break;
+                    case PieceType::BISHOP: ch = 'b'; break;
+                    case PieceType::ROOK:   ch = 'r'; break;
+                    case PieceType::QUEEN:  ch = 'q'; break;
+                    case PieceType::KING:   ch = 'k'; break;
+                    default: break;
+                }
+                if (p.color == Color::WHITE) ch = toupper(ch);
+                hash += ch;
+            }
+        }
+    }
+    return hash;
+}
+
+CastlingRights MinimaxEngine::updateCastlingRights(const CastlingRights& rights, const Move& move, const Board&) {
     CastlingRights newRights = rights;
     
-    // If king moves, lose all castling rights for that color
     if (move.piece.type == PieceType::KING) {
         if (move.piece.color == Color::WHITE) {
             newRights.whiteKingSide = false;
@@ -544,305 +472,210 @@ CastlingRights MinimaxEngine::updateCastlingRights(
         }
     }
     
-    // If rook moves, lose castling right for that side
     if (move.piece.type == PieceType::ROOK) {
-        if (move.piece.color == Color::WHITE) {
-            if (move.from.col == 0) newRights.whiteKingSide = false; // King-side rook at col 0
-            if (move.from.col == 7) newRights.whiteQueenSide = false; // Queen-side rook at col 7
-        } else {
-            if (move.from.col == 0) newRights.blackKingSide = false;
-            if (move.from.col == 7) newRights.blackQueenSide = false;
-        }
-    }
-    
-    // If a rook is captured on its original square, lose that side's castling right
-    if (!move.captured.isEmpty() && move.captured.type == PieceType::ROOK) {
-        if (move.captured.color == Color::WHITE) {
-            if (move.to.row == 0 && move.to.col == 0) newRights.whiteKingSide = false;
-            if (move.to.row == 0 && move.to.col == 7) newRights.whiteQueenSide = false;
-        } else {
-            if (move.to.row == 7 && move.to.col == 0) newRights.blackKingSide = false;
-            if (move.to.row == 7 && move.to.col == 7) newRights.blackQueenSide = false;
+        int homeRow = (move.piece.color == Color::WHITE) ? 0 : 7;
+        if (move.from.row == homeRow) {
+            if (move.piece.color == Color::WHITE) {
+                if (move.from.col == 0) newRights.whiteKingSide = false;
+                if (move.from.col == 7) newRights.whiteQueenSide = false;
+            } else {
+                if (move.from.col == 0) newRights.blackKingSide = false;
+                if (move.from.col == 7) newRights.blackQueenSide = false;
+            }
         }
     }
     
     return newRights;
 }
 
-int MinimaxEngine::minimax(const Board& board, Color currentColor, int depth,
-                          bool maximizing, int alpha, int beta,
-                          const CastlingRights& castling, int moveCount) {
+// MVV-LVA scoring for captures
+static int mvvLva(const Move& m) {
+    if (m.captured.isEmpty()) return 0;
+    int victim = static_cast<int>(m.captured.type);
+    int attacker = static_cast<int>(m.piece.type);
+    return (victim * 10) - attacker;
+}
+
+// Quiescence search
+int MinimaxEngine::quiescence(const Board& board, Color currentColor, bool maximizing,
+                              int alpha, int beta, const CastlingRights& castling, int moveCount) {
+    if (isTimeExpired()) return Evaluator::evaluate(board, rootColor_, castling, moveCount);
     
-    // Check time limit
-    if (isTimeExpired()) {
-        timeExpired_ = true;
-        return Evaluator::evaluate(board, rootColor_, castling, moveCount);
+    int standPat = Evaluator::evaluate(board, rootColor_, castling, moveCount);
+    
+    if (maximizing) {
+        if (standPat >= beta) return beta;
+        if (alpha < standPat) alpha = standPat;
+    } else {
+        if (standPat <= alpha) return alpha;
+        if (beta > standPat) beta = standPat;
     }
     
+    // Only search captures
+    std::vector<Move> allMoves = MoveGenerator::generateMoves(board, currentColor, castling);
+    std::vector<Move> captures;
+    for (const auto& m : allMoves) {
+        if (!m.captured.isEmpty()) captures.push_back(m);
+    }
+    
+    // Order captures by MVV-LVA
+    std::sort(captures.begin(), captures.end(), [](const Move& a, const Move& b) {
+        return mvvLva(a) > mvvLva(b);
+    });
+    
+    for (const auto& move : captures) {
+        Board nb = board.clone();
+        nb.applyMove(move);
+        
+        if (MoveGenerator::isKingInCheck(nb, currentColor)) continue;
+        
+        CastlingRights nc = updateCastlingRights(castling, move, board);
+        Color nextColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+        
+        int score = quiescence(nb, nextColor, !maximizing, alpha, beta, nc, moveCount);
+        
+        if (maximizing) {
+            if (score > alpha) alpha = score;
+            if (alpha >= beta) break;
+        } else {
+            if (score < beta) beta = score;
+            if (beta <= alpha) break;
+        }
+    }
+    
+    return maximizing ? alpha : beta;
+}
+
+// Minimax with alpha-beta pruning
+int MinimaxEngine::minimax(const Board& board, Color currentColor, int depth, bool maximizing,
+                          int alpha, int beta, const CastlingRights& castling, int moveCount) {
+    if (isTimeExpired()) return Evaluator::evaluate(board, rootColor_, castling, moveCount);
+    
     if (depth == 0) {
-        return Evaluator::evaluate(board, rootColor_, castling, moveCount);
+        return quiescence(board, currentColor, maximizing, alpha, beta, castling, moveCount);
     }
     
     std::vector<Move> moves = MoveGenerator::generateMoves(board, currentColor, castling);
     
     if (moves.empty()) {
-        // Terminal position: checkmate or stalemate
         bool inCheck = MoveGenerator::isKingInCheck(board, currentColor);
-        
         if (inCheck) {
-            // Checkmate - prefer quicker checkmates
-            int mateScore = maximizing ? -100000 : 100000;
-            return mateScore + (maximizing ? depth : -depth);
-        } else {
-            // Stalemate
-            return 0;
+            // Checkmate
+            int mateScore = maximizing ? -500000 : 500000;
+            return mateScore + (maximizing ? depth * 10 : -depth * 10);
         }
+        return 0; // Stalemate
     }
     
-    // Move ordering: prioritize castling, then captures, penalize king and rook moves
-    std::sort(moves.begin(), moves.end(), [&castling, currentColor](const Move& a, const Move& b) {
-        int aScore = 0;
-        int bScore = 0;
-
-        // Prefer castling VERY strongly (highest priority)
-        if (a.isCastling) aScore += 500;
-        if (b.isCastling) bScore += 500;
-
-        // HEAVILY discourage rook moves from corner when we can still castle on that side
-        if (a.piece.type == PieceType::ROOK && !a.isCastling) {
-            if (currentColor == Color::WHITE) {
-                if (a.from.row == 7) {
-                    if (a.from.col == 7 && castling.whiteKingSide) aScore -= 200;  // h1 rook
-                    if (a.from.col == 0 && castling.whiteQueenSide) aScore -= 200; // a1 rook
-                }
-            } else {
-                if (a.from.row == 0) {
-                    if (a.from.col == 7 && castling.blackKingSide) aScore -= 200;  // h8 rook
-                    if (a.from.col == 0 && castling.blackQueenSide) aScore -= 200; // a8 rook
-                }
-            }
-        }
-        if (b.piece.type == PieceType::ROOK && !b.isCastling) {
-            if (currentColor == Color::WHITE) {
-                if (b.from.row == 7) {
-                    if (b.from.col == 7 && castling.whiteKingSide) bScore -= 200;
-                    if (b.from.col == 0 && castling.whiteQueenSide) bScore -= 200;
-                }
-            } else {
-                if (b.from.row == 0) {
-                    if (b.from.col == 7 && castling.blackKingSide) bScore -= 200;
-                    if (b.from.col == 0 && castling.blackQueenSide) bScore -= 200;
-                }
-            }
-        }
-
-        // Discourage early king moves that aren't castling
-        if (a.piece.type == PieceType::KING && !a.isCastling) aScore -= 120;
-        if (b.piece.type == PieceType::KING && !b.isCastling) bScore -= 120;
-
-        // Captures next
-        if (!a.captured.isEmpty()) aScore += 20;
-        if (!b.captured.isEmpty()) bScore += 20;
-
+    // Move ordering
+    std::sort(moves.begin(), moves.end(), [](const Move& a, const Move& b) {
+        int aScore = 0, bScore = 0;
+        
+        if (a.isCastling) aScore += 2000;
+        if (b.isCastling) bScore += 2000;
+        
+        if (!a.captured.isEmpty()) aScore += 500 + mvvLva(a);
+        if (!b.captured.isEmpty()) bScore += 500 + mvvLva(b);
+        
         return aScore > bScore;
     });
     
     int bestScore = maximizing ? std::numeric_limits<int>::min() : std::numeric_limits<int>::max();
     
     for (const Move& move : moves) {
-        Board newBoard = board.clone();
-        newBoard.applyMove(move);
+        Board nb = board.clone();
+        nb.applyMove(move);
         
-        CastlingRights newCastling = updateCastlingRights(castling, move, board);
+        if (MoveGenerator::isKingInCheck(nb, currentColor)) continue;
+        
+        CastlingRights nc = updateCastlingRights(castling, move, board);
         Color nextColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
         
-        int score = minimax(newBoard, nextColor, depth - 1, !maximizing, alpha, beta, newCastling, moveCount + 1);
+        int score = minimax(nb, nextColor, depth - 1, !maximizing, alpha, beta, nc, moveCount);
         
         if (maximizing) {
-            bestScore = std::max(bestScore, score);
-            alpha = std::max(alpha, score);
+            if (score > bestScore) bestScore = score;
+            if (score > alpha) alpha = score;
+            if (alpha >= beta) break;
         } else {
-            bestScore = std::min(bestScore, score);
-            beta = std::min(beta, score);
-        }
-        
-        // Alpha-beta pruning
-        if (beta <= alpha) {
-            break;
+            if (score < bestScore) bestScore = score;
+            if (score < beta) beta = score;
+            if (beta <= alpha) break;
         }
     }
     
     return bestScore;
 }
 
-std::string MinimaxEngine::getPositionHash(const Board& board) {
-    // Simple position hash: concatenate piece positions
-    std::string hash = "";
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            Piece p = board.getPiece(Position(row, col));
-            if (!p.isEmpty()) {
-                hash += std::to_string(row) + std::to_string(col);
-                hash += std::to_string(static_cast<int>(p.type));
-                hash += std::to_string(static_cast<int>(p.color));
-            }
-        }
-    }
-    return hash;
-}
-
 Move MinimaxEngine::findBestMove(const Board& board, Color color, const CastlingRights& castling,
-                                 const std::vector<std::string>& positionHistory) {
+                                const std::vector<std::string>& positionHistory) {
     rootColor_ = color;
     timeExpired_ = false;
     searchStartTime_ = std::chrono::steady_clock::now();
-    
-    // Estimate move count from position history
-    moveCount_ = positionHistory.size();
+    moveCount_ = static_cast<int>(positionHistory.size());
     
     std::vector<Move> moves = MoveGenerator::generateMoves(board, color, castling);
+    if (moves.empty()) return Move();
     
-    if (moves.empty()) {
-        return Move(); // No valid moves
+    // Check for immediate mate
+    for (const auto& move : moves) {
+        Board nb = board.clone();
+        nb.applyMove(move);
+        
+        if (MoveGenerator::isKingInCheck(nb, color)) continue;
+        
+        Color oppColor = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
+        CastlingRights nc = updateCastlingRights(castling, move, board);
+        
+        std::vector<Move> replies = MoveGenerator::generateMoves(nb, oppColor, nc);
+        if (replies.empty() && MoveGenerator::isKingInCheck(nb, oppColor)) {
+            return move; // Checkmate in 1
+        }
     }
     
-    // Move ordering at root: in opening, HEAVILY prioritize castling and development
-    bool isOpening = Evaluator::isInOpeningPhase(moveCount_);
-    
-    std::sort(moves.begin(), moves.end(), [&castling, color, isOpening](const Move& a, const Move& b) {
-        int aScore = 0;
-        int bScore = 0;
-        
-        // In opening: MASSIVE priority for castling
-        if (a.isCastling) aScore += (isOpening ? 5000 : 1000);
-        if (b.isCastling) bScore += (isOpening ? 5000 : 1000);
-        
-        // In opening: Bonus for developing knights and bishops
-        if (isOpening) {
-            int aFromRank = (color == Color::WHITE) ? 0 : 7;
-            int bFromRank = (color == Color::WHITE) ? 0 : 7;
-            
-            // Bonus for moving knights off back rank
-            if (a.piece.type == PieceType::KNIGHT && a.from.row == aFromRank) {
-                aScore += 300;
-            }
-            if (b.piece.type == PieceType::KNIGHT && b.from.row == bFromRank) {
-                bScore += 300;
-            }
-            
-            // Bonus for moving bishops off back rank
-            if (a.piece.type == PieceType::BISHOP && a.from.row == aFromRank) {
-                aScore += 250;
-            }
-            if (b.piece.type == PieceType::BISHOP && b.from.row == bFromRank) {
-                bScore += 250;
-            }
-            
-            // Penalty for queen moves in opening
-            if (a.piece.type == PieceType::QUEEN) aScore -= 400;
-            if (b.piece.type == PieceType::QUEEN) bScore -= 400;
-            
-            // Bonus for center pawn moves (e4, d4, e5, d5)
-            if (a.piece.type == PieceType::PAWN && (a.to.col == 3 || a.to.col == 4)) {
-                aScore += 200;
-            }
-            if (b.piece.type == PieceType::PAWN && (b.to.col == 3 || b.to.col == 4)) {
-                bScore += 200;
-            }
-        }
-        
-        // HEAVILY penalize rook moves from corner when we can still castle
-        if (a.piece.type == PieceType::ROOK) {
-            if (color == Color::WHITE && a.from.row == 7) {
-                if (a.from.col == 7 && castling.whiteKingSide) aScore -= 300;
-                if (a.from.col == 0 && castling.whiteQueenSide) aScore -= 300;
-            } else if (color == Color::BLACK && a.from.row == 0) {
-                if (a.from.col == 7 && castling.blackKingSide) aScore -= 300;
-                if (a.from.col == 0 && castling.blackQueenSide) aScore -= 300;
-            }
-        }
-        if (b.piece.type == PieceType::ROOK) {
-            if (color == Color::WHITE && b.from.row == 7) {
-                if (b.from.col == 7 && castling.whiteKingSide) bScore -= 300;
-                if (b.from.col == 0 && castling.whiteQueenSide) bScore -= 300;
-            } else if (color == Color::BLACK && b.from.row == 0) {
-                if (b.from.col == 7 && castling.blackKingSide) bScore -= 300;
-                if (b.from.col == 0 && castling.blackQueenSide) bScore -= 300;
-            }
-        }
-        
-        // Penalize non-castling king moves (search these last)
-        if (a.piece.type == PieceType::KING && !a.isCastling) aScore -= 50;
-        if (b.piece.type == PieceType::KING && !b.isCastling) bScore -= 50;
-        
-        // Then captures
-        if (!a.captured.isEmpty()) aScore += 10;
-        if (!b.captured.isEmpty()) bScore += 10;
-        
-        return aScore > bScore;
-    });
-    
-    // Iterative deepening: start at depth 1, increase until time runs out or max depth reached
     Move bestMove = moves[0];
-    int maxDepth = depth_;
+    int bestScore = std::numeric_limits<int>::min();
     
-    for (int currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
-        if (isTimeExpired()) {
-            // Time expired, return best move found so far
-            break;
-        }
+    for (int currentDepth = 1; currentDepth <= depth_; currentDepth++) {
+        if (isTimeExpired()) break;
         
-        int bestScore = std::numeric_limits<int>::min();
         int alpha = std::numeric_limits<int>::min();
         int beta = std::numeric_limits<int>::max();
-        Move depthBestMove = moves[0];
-        
-        bool searchCompleted = true;
         
         for (const Move& move : moves) {
-            if (isTimeExpired()) {
-                // Time expired during this depth, keep previous depth's best move
-                searchCompleted = false;
-                break;
-            }
+            if (isTimeExpired()) break;
             
-            Board newBoard = board.clone();
-            newBoard.applyMove(move);
+            Board nb = board.clone();
+            nb.applyMove(move);
             
-            CastlingRights newCastling = updateCastlingRights(castling, move, board);
+            if (MoveGenerator::isKingInCheck(nb, color)) continue;
+            
+            CastlingRights nc = updateCastlingRights(castling, move, board);
             Color nextColor = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
             
-            int score = minimax(newBoard, nextColor, currentDepth - 1, false, alpha, beta, newCastling, moveCount_);
+            int score = minimax(nb, nextColor, currentDepth - 1, false, alpha, beta, nc, moveCount_);
             
-            // Check for position repetition - avoid draws when not losing
+            // Avoid repetitions
             if (!positionHistory.empty()) {
-                std::string posHash = getPositionHash(newBoard);
-                int repetitionCount = 0;
+                std::string posHash = getPositionHash(nb);
                 for (const auto& oldPos : positionHistory) {
-                    if (oldPos == posHash) repetitionCount++;
-                }
-                
-                // If position repeats and we're not losing, heavily penalize
-                if (repetitionCount > 0 && score >= -100) {
-                    score -= 300; // Strong penalty for repetition in equal/winning positions
+                    if (oldPos == posHash) {
+                        score -= 300;
+                        break;
+                    }
                 }
             }
             
             if (score > bestScore) {
                 bestScore = score;
-                depthBestMove = move;
+                bestMove = move;
             }
             
-            alpha = std::max(alpha, score);
+            if (score > alpha) alpha = score;
         }
         
-        // Only update best move if we completed this depth's search
-        if (searchCompleted) {
-            bestMove = depthBestMove;
-            
-            // Re-order moves based on scores for next iteration (move ordering optimization)
-            // This helps alpha-beta pruning in deeper searches
-        }
+        // Early exit if mate found
+        if (bestScore > 450000) break;
     }
     
     return bestMove;
