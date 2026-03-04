@@ -6,7 +6,7 @@ export type PlayerType = "human" | "ai";
 export interface AISettings {
   depth: number;
   maxTime: number; // in milliseconds
-  version: number; // 1 for V1 (alpha-beta), 2 for V2 (simple minimax with castling bonus)
+  version: number; // 1 for V1 (alpha-beta), 2 for V2 (simple minimax with castling bonus), 3 for Stockfish
 }
 
 export interface GameSetupOptions {
@@ -166,9 +166,10 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
                     >
                       <option value={1}>V1 - Alpha-Beta Pruning (Advanced)</option>
                       <option value={2}>V2 - Simple Minimax (Castling Focused)</option>
+                      <option value={3}>Stockfish (Professional Engine)</option>
                     </select>
                     <small className="help-text">
-                      V1 uses advanced search with alpha-beta pruning. V2 uses simple minimax with castling bonus.
+                      V1 uses advanced search with alpha-beta pruning. V2 uses simple minimax. Stockfish is a world-class engine.
                     </small>
                   </div>
                   
@@ -225,9 +226,10 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame }) => {
                     >
                       <option value={1}>V1 - Alpha-Beta Pruning (Advanced)</option>
                       <option value={2}>V2 - Simple Minimax (Castling Focused)</option>
+                      <option value={3}>Stockfish (Professional Engine)</option>
                     </select>
                     <small className="help-text">
-                      V1 uses advanced search with alpha-beta pruning. V2 uses simple minimax with castling bonus.
+                      V1 uses advanced search with alpha-beta pruning. V2 uses simple minimax. Stockfish is a world-class engine.
                     </small>
                   </div>
                   

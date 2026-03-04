@@ -3,13 +3,14 @@ import type { GameState, Position, Move, Board, PieceType, PieceColor } from './
 import { createInitialBoard } from './initialBoard';
 import { getValidMoves, isPositionEqual, isKingInCheck, wouldMoveResultInCheck, getCastlingMoves } from './moveValidation';
 import { findBestMoveWasm, clearEngineHistory } from './wasmEngine';
+import { findBestMoveStockfish } from './stockfishEngine';
 
 export type PlayerType = 'human' | 'ai';
 
 export interface AISettings {
   depth: number;
   maxTime: number; // in milliseconds
-  version: number; // 1 for V1 (alpha-beta), 2 for V2 (simple minimax with castling bonus)
+  version: number; // 1 for V1 (alpha-beta), 2 for V2 (simple minimax with castling bonus), 3 for Stockfish
 }
 
 export interface GameOptions {
@@ -498,15 +499,30 @@ export const useChessGame = (options: GameOptions) => {
     const castlingRights = gameState.castlingRights;
     
     try {
-      // Use the C++ WebAssembly engine
-      const bestMove = await findBestMoveWasm({
-        board: currentBoard,
-        color: currentPlayer,
-        depth,
-        maxTime,
-        version,
-        castlingRights
-      });
+      let bestMove: Move | null = null;
+      
+      // Use Stockfish if version 3, otherwise use custom WASM engine
+      if (version === 3) {
+        // Use Stockfish engine
+        bestMove = await findBestMoveStockfish(
+          currentBoard,
+          currentPlayer,
+          castlingRights,
+          gameState.moveHistory,
+          depth === 500 ? 15 : depth, // Cap unlimited depth at 15 for Stockfish
+          maxTime || 3000 // Default to 3 seconds if no time limit
+        );
+      } else {
+        // Use the C++ WebAssembly engine (V1 or V2)
+        bestMove = await findBestMoveWasm({
+          board: currentBoard,
+          color: currentPlayer,
+          depth,
+          maxTime,
+          version,
+          castlingRights
+        });
+      }
 
       if (bestMove) {
         console.log('✓ AI found move:', bestMove);
@@ -540,7 +556,7 @@ export const useChessGame = (options: GameOptions) => {
         console.log('Game appears to be over:', errorMsg);
       }
     }
-  }, [gameState.currentPlayer, gameState.board, gameState.castlingRights, options.whitePlayer, options.blackPlayer, options.whiteAI, options.blackAI, gameStarted, makeMove]);
+  }, [gameState.currentPlayer, gameState.board, gameState.castlingRights, gameState.moveHistory, options.whitePlayer, options.blackPlayer, options.whiteAI, options.blackAI, gameStarted, makeMove]);
 
   // AI move trigger
   useEffect(() => {
