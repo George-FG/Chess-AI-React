@@ -22,6 +22,7 @@ public:
                        bool whiteHasCastled, bool blackHasCastled, int moveCount);
     static const int PIECE_VALUES[7];
     static int countMaterial(const Board& board, Color color);
+    static int evaluatePieceCoordination(const Board& board, Color color);
     static int evaluatePieceDevelopment(const Board& board, Color color, int moveCount);
     static int evaluateMobility(const Board& board, Color color, const CastlingRights& castling);
     static bool isPieceOnStartingSquare(PieceType type, Color color, Position pos);

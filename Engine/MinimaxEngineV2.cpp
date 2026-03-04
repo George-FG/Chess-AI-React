@@ -21,48 +21,50 @@ const int EvaluatorV2::PIECE_VALUES[7] = {
     0     // NONE
 };
 
-// Improved material evaluation with castling bonus, development, and mobility
+// Material-first evaluation: material is KING, positional factors are minimal
 int EvaluatorV2::evaluate(const Board& board, Color aiColor, const CastlingRights& castling, 
                           bool whiteHasCastled, bool blackHasCastled, int moveCount) {
     Color oppColor = (aiColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
     
     int score = 0;
     
-    // Material evaluation (MOST important - heavily weighted)
+    // MATERIAL IS EVERYTHING - this is the primary score
     int aiMaterial = countMaterial(board, aiColor);
     int oppMaterial = countMaterial(board, oppColor);
     int materialDiff = aiMaterial - oppMaterial;
     
-    // Base material score
-    score = materialDiff;
+    // Base material score - multiply by 10 to ensure it dominates
+    score = materialDiff * 10;
     
-    // After opening, heavily penalize being down material
-    // This ensures the engine won't sacrifice pieces for position
-    if (moveCount > 2) {
-        // Add extra weight to material deficit
-        if (materialDiff < -50) { // Down more than half a pawn
-            score += materialDiff * 2; // Triple the penalty (original + 2x more)
-        }
+    // Extra penalty for material deficit to prevent blunders
+    if (materialDiff < -50) { // Down more than half a pawn
+        score += materialDiff * 20; // Massive additional penalty
     }
     
-    // Piece development bonus/penalty (critical in early game)
-    if (moveCount < 18) {
+    // PIECE COORDINATION: Small bonus for pieces attacking/defending other pieces
+    // This encourages active, coordinated play without overriding material
+    int aiCoordination = evaluatePieceCoordination(board, aiColor);
+    int oppCoordination = evaluatePieceCoordination(board, oppColor);
+    score += (aiCoordination - oppCoordination); // Small ~2-5 point bonuses per piece
+    
+    // Piece development - TINY bonus/penalty (can't override material)
+    if (moveCount < 18 && materialDiff >= -100) { // Only if not badly down material
         int aiDevelopment = evaluatePieceDevelopment(board, aiColor, moveCount);
         int oppDevelopment = evaluatePieceDevelopment(board, oppColor, moveCount);
-        // Apply full development score - penalties are important
-        score += aiDevelopment - oppDevelopment;
+        // Heavily scaled down - development matters but material matters WAY more
+        score += (aiDevelopment - oppDevelopment) / 5; // Divide by 5 to make tiny
     }
     
-    // Mobility bonus (piece activity) - only if not losing material
-    if (materialDiff >= -50) { // Only consider mobility if not significantly down material
+    // Mobility bonus - MINIMAL (piece activity) 
+    if (materialDiff >= -50) { // Only consider mobility if not down material
         int aiMobility = evaluateMobility(board, aiColor, castling);
         int oppMobility = evaluateMobility(board, oppColor, castling);
-        score += (aiMobility - oppMobility) / 15; // Further scaled down
+        score += (aiMobility - oppMobility) / 50; // Heavily scaled down (was /15)
     }
     
-    // Castling bonus - encourage castling for king safety (only if not down material)
+    // Castling bonus - small encouragement (can't override material)
     if (materialDiff >= -100) {
-        const int CASTLING_BONUS = 25;
+        const int CASTLING_BONUS = 15; // Reduced from 25
         
         if (aiColor == Color::WHITE) {
             if (whiteHasCastled) {
@@ -80,8 +82,8 @@ int EvaluatorV2::evaluate(const Board& board, Color aiColor, const CastlingRight
             }
         }
         
-        // Bonus for keeping castling rights (if not yet castled)
-        const int CASTLING_RIGHTS_BONUS = 8;
+        // Tiny bonus for keeping castling rights
+        const int CASTLING_RIGHTS_BONUS = 5; // Reduced from 8
         
         if (aiColor == Color::WHITE && !whiteHasCastled && moveCount < 15) {
             if (castling.whiteKingSide || castling.whiteQueenSide) {
@@ -104,15 +106,15 @@ int EvaluatorV2::evaluate(const Board& board, Color aiColor, const CastlingRight
         }
     }
     
-    // Positional bonus: center control (scaled down, only if not behind in material)
+    // Minimal positional bonus: center control (tiny values)
     if (materialDiff >= -50) {
         const int CENTER_BONUS[8][8] = {
             {0, 0, 0, 0, 0, 0, 0, 0},
             {0, 0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 5, 5, 5, 5, 0, 0},
-            {0, 0, 5, 8, 8, 5, 0, 0},
-            {0, 0, 5, 8, 8, 5, 0, 0},
-            {0, 0, 5, 5, 5, 5, 0, 0},
+            {0, 0, 2, 2, 2, 2, 0, 0},  // Reduced from 5
+            {0, 0, 2, 3, 3, 2, 0, 0},  // Reduced from 5,8,8,5
+            {0, 0, 2, 3, 3, 2, 0, 0},  // Material must dominate
+            {0, 0, 2, 2, 2, 2, 0, 0},
             {0, 0, 0, 0, 0, 0, 0, 0},
             {0, 0, 0, 0, 0, 0, 0, 0}
         };
@@ -383,14 +385,14 @@ int EvaluatorV2::evaluatePieceDevelopment(const Board& board, Color color, int m
     bool hasUndevelopedMinors = undevelopedCount > 0;
     bool rooksDeveloped = isRookDeveloped(board, color);
     
-    // STRONG penalty for undeveloped pieces as game progresses
+    // SMALL penalty for undeveloped pieces (can't override material)
     if (moveCount > 5) {
-        development -= undevelopedCount * 30; // Heavy penalty per undeveloped piece
+        development -= undevelopedCount * 10; // Reduced from 30
     }
     
-    // PENALTY for moving rooks before completing minor piece development
+    // SMALL penalty for moving rooks before minor development
     if (hasUndevelopedMinors && rooksDeveloped && moveCount < 15) {
-        development -= 40; // Heavy penalty for premature rook development
+        development -= 15; // Reduced from 40
     }
     
     // Early game development bonuses
@@ -401,46 +403,203 @@ int EvaluatorV2::evaluatePieceDevelopment(const Board& board, Color color, int m
             
             Position pos(r, c);
             
-            // Reward developing knights and bishops
+            // Small reward for developing knights and bishops
             if (p.type == PieceType::KNIGHT || p.type == PieceType::BISHOP) {
                 if (!isPieceOnStartingSquare(p.type, color, pos)) {
-                    development += 25;
+                    development += 10; // Reduced from 25
                 } else if (moveCount > 8) {
-                    // Extra penalty for still being on starting square after move 8
-                    development -= 20;
+                    development -= 8; // Reduced from 20
                 }
             }
             
-            // Encourage central pawn advancement in opening
+            // Tiny encouragement for central pawn advancement
             if (p.type == PieceType::PAWN && moveCount < 10) {
                 if (color == Color::WHITE) {
                     if ((c == 3 || c == 4) && r >= 3) {
-                        development += 15;
+                        development += 6; // Reduced from 15
                     }
                 } else {
                     if ((c == 3 || c == 4) && r <= 4) {
-                        development += 15;
+                        development += 6; // Reduced from 15
                     }
                 }
             }
             
-            // STRONG penalty for early queen development (before move 10)
+            // Small penalty for early queen development
             if (p.type == PieceType::QUEEN && moveCount < 10) {
                 if (!isPieceOnStartingSquare(p.type, color, pos)) {
-                    development -= 25;
+                    development -= 10; // Reduced from 25
                 }
             }
             
-            // PENALTY for moving rooks too early (before move 10 and minors not developed)
+            // Small penalty for moving rooks too early
             if (p.type == PieceType::ROOK && moveCount < 10 && hasUndevelopedMinors) {
                 if (!isPieceOnStartingSquare(p.type, color, pos)) {
-                    development -= 35; // Strong discouragement
+                    development -= 12; // Reduced from 35
                 }
             }
         }
     }
     
     return development;
+}
+
+// Evaluate piece coordination: pieces that attack/defend other pieces
+// Small bonuses to favor coordinated, active play without overriding material
+int EvaluatorV2::evaluatePieceCoordination(const Board& board, Color color) {
+    int coordination = 0;
+    Color oppColor = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    
+    // For each piece of our color, check what it attacks/defends
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece piece = board.getPiece(Position(r, c));
+            if (piece.isEmpty() || piece.color != color) continue;
+            
+            Position from(r, c);
+            
+            // Check all squares this piece can attack/defend
+            for (int tr = 0; tr < 8; tr++) {
+                for (int tc = 0; tc < 8; tc++) {
+                    Position to(tr, tc);
+                    if (from == to) continue;
+                    
+                    Piece target = board.getPiece(to);
+                    if (target.isEmpty()) continue;
+                    
+                    // Check if this piece can attack/defend that square
+                    // Simple check: would moving there be legal in terms of piece movement?
+                    bool canReach = false;
+                    
+                    switch (piece.type) {
+                        case PieceType::PAWN: {
+                            // Pawns attack diagonally
+                            int direction = (color == Color::WHITE) ? 1 : -1;
+                            if (to.row == from.row + direction && abs(to.col - from.col) == 1) {
+                                canReach = true;
+                            }
+                            break;
+                        }
+                        case PieceType::KNIGHT: {
+                            int dr = abs(to.row - from.row);
+                            int dc = abs(to.col - from.col);
+                            if ((dr == 2 && dc == 1) || (dr == 1 && dc == 2)) {
+                                canReach = true;
+                            }
+                            break;
+                        }
+                        case PieceType::BISHOP: {
+                            if (abs(to.row - from.row) == abs(to.col - from.col)) {
+                                // Check diagonal is clear
+                                int dr = (to.row > from.row) ? 1 : -1;
+                                int dc = (to.col > from.col) ? 1 : -1;
+                                bool clear = true;
+                                int steps = abs(to.row - from.row) - 1;
+                                for (int i = 1; i <= steps; i++) {
+                                    if (!board.getPiece(Position(from.row + i*dr, from.col + i*dc)).isEmpty()) {
+                                        clear = false;
+                                        break;
+                                    }
+                                }
+                                canReach = clear;
+                            }
+                            break;
+                        }
+                        case PieceType::ROOK: {
+                            if (to.row == from.row || to.col == from.col) {
+                                // Check line is clear
+                                bool clear = true;
+                                if (to.row == from.row) {
+                                    int start = std::min(from.col, to.col) + 1;
+                                    int end = std::max(from.col, to.col);
+                                    for (int i = start; i < end; i++) {
+                                        if (!board.getPiece(Position(from.row, i)).isEmpty()) {
+                                            clear = false;
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    int start = std::min(from.row, to.row) + 1;
+                                    int end = std::max(from.row, to.row);
+                                    for (int i = start; i < end; i++) {
+                                        if (!board.getPiece(Position(i, from.col)).isEmpty()) {
+                                            clear = false;
+                                            break;
+                                        }
+                                    }
+                                }
+                                canReach = clear;
+                            }
+                            break;
+                        }
+                        case PieceType::QUEEN: {
+                            // Queen = rook + bishop
+                            if (to.row == from.row || to.col == from.col) {
+                                // Rook-like movement
+                                bool clear = true;
+                                if (to.row == from.row) {
+                                    int start = std::min(from.col, to.col) + 1;
+                                    int end = std::max(from.col, to.col);
+                                    for (int i = start; i < end; i++) {
+                                        if (!board.getPiece(Position(from.row, i)).isEmpty()) {
+                                            clear = false;
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    int start = std::min(from.row, to.row) + 1;
+                                    int end = std::max(from.row, to.row);
+                                    for (int i = start; i < end; i++) {
+                                        if (!board.getPiece(Position(i, from.col)).isEmpty()) {
+                                            clear = false;
+                                            break;
+                                        }
+                                    }
+                                }
+                                canReach = clear;
+                            } else if (abs(to.row - from.row) == abs(to.col - from.col)) {
+                                // Bishop-like movement
+                                int dr = (to.row > from.row) ? 1 : -1;
+                                int dc = (to.col > from.col) ? 1 : -1;
+                                bool clear = true;
+                                int steps = abs(to.row - from.row) - 1;
+                                for (int i = 1; i <= steps; i++) {
+                                    if (!board.getPiece(Position(from.row + i*dr, from.col + i*dc)).isEmpty()) {
+                                        clear = false;
+                                        break;
+                                    }
+                                }
+                                canReach = clear;
+                            }
+                            break;
+                        }
+                        case PieceType::KING: {
+                            if (abs(to.row - from.row) <= 1 && abs(to.col - from.col) <= 1) {
+                                canReach = true;
+                            }
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+                    
+                    if (canReach) {
+                        if (target.color == color) {
+                            // Defending a friendly piece: small bonus
+                            // More valuable pieces defended = bigger bonus
+                            int defendValue = PIECE_VALUES[static_cast<int>(target.type)] / 200;
+                            coordination += std::min(5, defendValue); // Cap at 5 points
+                        } else {
+                            // Attacking an enemy piece: tiny bonus for activity
+                            coordination += 2;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    return coordination;
 }
 
 // Evaluate piece mobility - count number of legal moves
