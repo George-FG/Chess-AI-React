@@ -59,13 +59,14 @@ struct Move {
     PieceType promotionType;
     bool isCastling;
     bool isEnPassant;
+    int searchDepth; // Depth reached during search
     
     Move() : isPromotion(false), promotionType(PieceType::NONE), 
-             isCastling(false), isEnPassant(false) {}
+             isCastling(false), isEnPassant(false), searchDepth(0) {}
     
     Move(Position f, Position t, Piece p) 
         : from(f), to(t), piece(p), isPromotion(false), 
-          promotionType(PieceType::NONE), isCastling(false), isEnPassant(false) {}
+          promotionType(PieceType::NONE), isCastling(false), isEnPassant(false), searchDepth(0) {}
 };
 
 struct CastlingRights {

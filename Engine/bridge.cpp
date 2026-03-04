@@ -168,6 +168,7 @@ public:
             result.set("from", from);
             result.set("to", to);
             result.set("piece", piece);
+            result.set("searchDepth", bestMove.searchDepth); // Include search depth
             
             if (!bestMove.captured.isEmpty()) {
                 val captured = val::object();

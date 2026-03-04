@@ -19,6 +19,7 @@ export interface Move {
   promotion?: PieceType;
   isCastling?: boolean;
   isEnPassant?: boolean;
+  searchDepth?: number;
 }
 
 export type Board = (Piece | null)[][];

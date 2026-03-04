@@ -45,7 +45,6 @@ function getWorker(): Worker {
       if (response.success) {
         if (response.move) {
           // Handle move response
-          console.log('✓ Move received from worker:', response.move);
           // Convert the result to our Move type
           const move: Move = {
             from: {
@@ -66,7 +65,8 @@ function getWorker(): Worker {
             } : undefined,
             promotion: response.move.promotion ? response.move.promotion as PieceType : undefined,
             isCastling: response.move.isCastling,
-            isEnPassant: response.move.isEnPassant
+            isEnPassant: response.move.isEnPassant,
+            searchDepth: response.move.searchDepth
           };
           pending.resolve(move);
         } else {

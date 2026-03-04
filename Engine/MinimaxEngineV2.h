@@ -19,6 +19,9 @@ public:
     static bool isPieceOnStartingSquare(PieceType type, Color color, Position pos);
     static int countUndevelopedPieces(const Board& board, Color color);
     static bool isRookDeveloped(const Board& board, Color color);
+    static int evaluateEndgame(const Board& board, Color aiColor, const CastlingRights& castling);
+    static bool isEndgame(const Board& board);
+    static Position findKing(const Board& board, Color color);
 };
 
 // AI engine using minimax with alpha-beta pruning

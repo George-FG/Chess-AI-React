@@ -138,6 +138,154 @@ int EvaluatorV2::evaluate(const Board& board, Color aiColor, const CastlingRight
         }
     }
     
+    // Endgame evaluation - only when material is very low
+    if (isEndgame(board)) {
+        int endgameBonus = evaluateEndgame(board, aiColor, castling);
+        score += endgameBonus;
+    }
+    
+    return score;
+}
+
+// Check if we're in endgame (few pieces left)
+bool EvaluatorV2::isEndgame(const Board& board) {
+    int totalPieces = 0;
+    int totalQueensRooks = 0;
+    
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece p = board.getPiece(Position(r, c));
+            if (!p.isEmpty() && p.type != PieceType::KING) {
+                totalPieces++;
+                if (p.type == PieceType::QUEEN || p.type == PieceType::ROOK) {
+                    totalQueensRooks++;
+                }
+            }
+        }
+    }
+    
+    // Endgame if: very few pieces OR few heavy pieces
+    return totalPieces <= 10 || totalQueensRooks <= 2;
+}
+
+Position EvaluatorV2::findKing(const Board& board, Color color) {
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece p = board.getPiece(Position(r, c));
+            if (!p.isEmpty() && p.type == PieceType::KING && p.color == color) {
+                return Position(r, c);
+            }
+        }
+    }
+    return Position(-1, -1);
+}
+
+// Endgame evaluation for checkmate patterns
+int EvaluatorV2::evaluateEndgame(const Board& board, Color aiColor, const CastlingRights& castling) {
+    Color oppColor = (aiColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    
+    int aiMaterial = countMaterial(board, aiColor);
+    int oppMaterial = countMaterial(board, oppColor);
+    
+    int score = 0;
+    
+    // If we have significantly more material, push for checkmate
+    if (aiMaterial - oppMaterial > 300) { // Up by more than a minor piece
+        Position oppKing = findKing(board, oppColor);
+        Position aiKing = findKing(board, aiColor);
+        
+        if (oppKing.isValid()) {
+            // Push enemy king to edge of board
+            int oppKingFile = oppKing.col;
+            int oppKingRank = oppKing.row;
+            
+            int distToEdge = std::min({oppKingFile, 7 - oppKingFile, oppKingRank, 7 - oppKingRank});
+            score += (7 - distToEdge) * 30; // Reward pushing king to edge
+            
+            // Bring our king closer for checkmate
+            if (aiKing.isValid()) {
+                int kingDistance = std::abs(aiKing.row - oppKing.row) + std::abs(aiKing.col - oppKing.col);
+                score += (14 - kingDistance) * 20; // Reward king proximity
+            }
+            
+            // Strongly encourage pawn promotion when winning
+            for (int r = 0; r < 8; r++) {
+                for (int c = 0; c < 8; c++) {
+                    Piece p = board.getPiece(Position(r, c));
+                    if (p.isEmpty() || p.color != aiColor || p.type != PieceType::PAWN) continue;
+                    
+                    // Check if pawn is advanced and relatively safe
+                    int advancedRank = (aiColor == Color::WHITE) ? (7 - r) : r;
+                    if (advancedRank >= 4) {
+                        // Heavily reward advanced pawns in endgame
+                        score += advancedRank * 40;
+                        
+                        // Extra bonus if close to promotion
+                        if (advancedRank >= 6) {
+                            score += 150;
+                        }
+                        
+                        // Check if pawn is protected
+                        bool protected_pawn = false;
+                        
+                        // Check diagonal protection
+                        int pawnDirection = (aiColor == Color::WHITE) ? -1 : 1;
+                        for (int dc = -1; dc <= 1; dc += 2) {
+                            Position protectorPos(r + pawnDirection, c + dc);
+                            if (protectorPos.isValid()) {
+                                Piece protector = board.getPiece(protectorPos);
+                                if (!protector.isEmpty() && protector.color == aiColor && 
+                                    protector.type == PieceType::PAWN) {
+                                    protected_pawn = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Check if king protects pawn
+                        if (aiKing.isValid()) {
+                            int distKingToPawn = std::max(std::abs(aiKing.row - r), std::abs(aiKing.col - c));
+                            if (distKingToPawn <= 1) {
+                                protected_pawn = true;
+                            }
+                        }
+                        
+                        if (protected_pawn) {
+                            score += 50; // Bonus for protected advanced pawn
+                        }
+                    }
+                }
+            }
+            
+            // Count our queens and rooks to determine mating potential
+            int queens = 0, rooks = 0;
+            for (int r = 0; r < 8; r++) {
+                for (int c = 0; c < 8; c++) {
+                    Piece p = board.getPiece(Position(r, c));
+                    if (p.isEmpty() || p.color != aiColor) continue;
+                    if (p.type == PieceType::QUEEN) queens++;
+                    if (p.type == PieceType::ROOK) rooks++;
+                }
+            }
+            
+            // If we have sufficient mating material, aggressively pursue checkmate
+            if (queens >= 1 || rooks >= 2 || (queens >= 1 && rooks >= 1)) {
+                // Extra pressure - coordinate pieces to corner the king
+                score += 100;
+                
+                // Reward limiting opponent king mobility
+                std::vector<Move> oppMoves = MoveGenerator::generateMoves(board, oppColor, castling);
+                int oppMobility = 0;
+                for (const Move& m : oppMoves) {
+                    if (m.piece.type == PieceType::KING) {
+                        oppMobility++;
+                    }
+                }
+                score += (8 - oppMobility) * 15; // Reward limiting king moves
+            }
+        }
+    }
+    
     return score;
 }
 
@@ -483,6 +631,9 @@ int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, 
     if (maximizing) {
         int maxEval = std::numeric_limits<int>::min();
         
+        // Check if current position is in check
+        bool currentlyInCheck = MoveGenerator::isKingInCheck(board, currentColor);
+        
         for (const Move& move : moves) {
             Board newBoard = board.clone();
             newBoard.applyMove(move);
@@ -509,6 +660,19 @@ int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, 
             Color nextColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
             int eval = minimax(newBoard, nextColor, depth - 1, false, alpha, beta, newCastling, moveCount + 1);
             
+            // Penalty for unnecessary king moves (not in check, not castling, before move 25)
+            if (move.piece.type == PieceType::KING && !move.isCastling && !currentlyInCheck && moveCount < 25) {
+                // Check if this color has already castled
+                bool hasCastled = (currentColor == Color::WHITE) ? whiteHasCastled_ : blackHasCastled_;
+                if (!hasCastled) {
+                    // Heavy penalty for moving king before castling when not in check
+                    eval -= 60;
+                } else {
+                    // Moderate penalty for moving king unnecessarily even after castling
+                    eval -= 25;
+                }
+            }
+            
             // Restore castling status
             whiteHasCastled_ = oldWhiteCastled;
             blackHasCastled_ = oldBlackCastled;
@@ -527,6 +691,9 @@ int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, 
         return maxEval;
     } else {
         int minEval = std::numeric_limits<int>::max();
+        
+        // Check if current position is in check
+        bool currentlyInCheck = MoveGenerator::isKingInCheck(board, currentColor);
         
         for (const Move& move : moves) {
             Board newBoard = board.clone();
@@ -553,6 +720,19 @@ int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, 
             
             Color nextColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
             int eval = minimax(newBoard, nextColor, depth - 1, true, alpha, beta, newCastling, moveCount + 1);
+            
+            // Penalty for unnecessary king moves (not in check, not castling, before move 25)
+            if (move.piece.type == PieceType::KING && !move.isCastling && !currentlyInCheck && moveCount < 25) {
+                // Check if this color has already castled
+                bool hasCastled = (currentColor == Color::WHITE) ? whiteHasCastled_ : blackHasCastled_;
+                if (!hasCastled) {
+                    // Heavy penalty for moving king before castling when not in check
+                    eval += 60; // Add because we're minimizing
+                } else {
+                    // Moderate penalty for moving king unnecessarily even after castling
+                    eval += 25;
+                }
+            }
             
             // Restore castling status
             whiteHasCastled_ = oldWhiteCastled;
@@ -594,6 +774,10 @@ Move MinimaxEngineV2::findBestMove(const Board& board, Color color, const Castli
     
     Move bestMove = moves[0];
     int bestScore = std::numeric_limits<int>::min();
+    int depthReached = 0; // Track the depth we actually completed
+    
+    // Check if currently in check
+    bool inCheck = MoveGenerator::isKingInCheck(board, color);
     
     // Iterative deepening: search depth 1, 2, 3, ... up to depth_
     // This ensures we always have a move even if time expires
@@ -647,6 +831,21 @@ Move MinimaxEngineV2::findBestMove(const Board& board, Color color, const Castli
             Color nextColor = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
             int score = minimax(newBoard, nextColor, currentDepth - 1, false, alpha, beta, newCastling, 1);
             
+            // Penalty for unnecessary king moves at root (not in check, not castling)
+            // Only apply in early/mid game (approximated by position history size)
+            if (move.piece.type == PieceType::KING && !move.isCastling && !inCheck && 
+                positionHistory.size() < 25) {
+                if (!whiteHasCastled && color == Color::WHITE) {
+                    // Heavy penalty for moving king before castling when not in check
+                    score -= 60;
+                } else if (!blackHasCastled && color == Color::BLACK) {
+                    score -= 60;
+                } else {
+                    // Moderate penalty for moving king unnecessarily even after castling
+                    score -= 25;
+                }
+            }
+            
             // Restore castling status
             whiteHasCastled_ = oldWhiteCastled;
             blackHasCastled_ = oldBlackCastled;
@@ -663,11 +862,15 @@ Move MinimaxEngineV2::findBestMove(const Board& board, Color color, const Castli
         if (!isTimeExpired()) {
             bestMove = depthBestMove;
             bestScore = depthBestScore;
+            depthReached = currentDepth; // Update depth reached
         }
         
         // Early exit if mate found
         if (bestScore > 450000) break;
     }
+    
+    // Set the search depth in the move
+    bestMove.searchDepth = depthReached;
     
     return bestMove;
 }

@@ -629,18 +629,23 @@ Move MinimaxEngine::findBestMove(const Board& board, Color color, const Castling
         
         std::vector<Move> replies = MoveGenerator::generateMoves(nb, oppColor, nc);
         if (replies.empty() && MoveGenerator::isKingInCheck(nb, oppColor)) {
-            return move; // Checkmate in 1
+            Move mateMove = move;
+            mateMove.searchDepth = 1;
+            return mateMove; // Checkmate in 1
         }
     }
     
     Move bestMove = moves[0];
     int bestScore = std::numeric_limits<int>::min();
+    int depthReached = 0;
     
     for (int currentDepth = 1; currentDepth <= depth_; currentDepth++) {
         if (isTimeExpired()) break;
         
         int alpha = std::numeric_limits<int>::min();
         int beta = std::numeric_limits<int>::max();
+        Move depthBestMove = bestMove;
+        int depthBestScore = std::numeric_limits<int>::min();
         
         for (const Move& move : moves) {
             if (isTimeExpired()) break;
@@ -666,17 +671,26 @@ Move MinimaxEngine::findBestMove(const Board& board, Color color, const Castling
                 }
             }
             
-            if (score > bestScore) {
-                bestScore = score;
-                bestMove = move;
+            if (score > depthBestScore) {
+                depthBestScore = score;
+                depthBestMove = move;
             }
             
             if (score > alpha) alpha = score;
         }
         
+        // Update best move only if we completed this depth
+        if (!isTimeExpired()) {
+            bestMove = depthBestMove;
+            bestScore = depthBestScore;
+            depthReached = currentDepth;
+        }
+        
         // Early exit if mate found
         if (bestScore > 450000) break;
     }
+    
+    bestMove.searchDepth = depthReached;
     
     return bestMove;
 }

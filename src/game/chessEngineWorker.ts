@@ -24,6 +24,7 @@ interface WasmMove {
   promotion?: string;
   isCastling?: boolean;
   isEnPassant?: boolean;
+  searchDepth?: number;
 }
 
 interface ChessEngineInstance {
@@ -226,7 +227,10 @@ self.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
     // Find the best move (this runs in the worker thread)
     const result = engine.findBestMove(request.color || 'white');
     
-    console.log('[Worker] findBestMove result:', result);
+    // Log move with side and depth
+    const side = request.color || 'white';
+    const depth = result.searchDepth || 0;
+    console.log(`${side} move with depth ${depth}`);
     
     // Check if we got an empty result (no legal moves)
     if (!result || typeof result !== 'object') {
