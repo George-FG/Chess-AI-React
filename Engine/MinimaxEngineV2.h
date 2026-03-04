@@ -4,8 +4,16 @@
 #include "Engine.h"
 #include <limits>
 #include <chrono>
+#include <unordered_map>
 
 namespace Chess {
+
+// Transposition table entry
+struct TranspositionEntry {
+    int depth;
+    int score;
+    enum Flag { EXACT, LOWER_BOUND, UPPER_BOUND } flag;
+};
 
 // Evaluator for V2 engine with improved evaluation
 class EvaluatorV2 {
@@ -46,14 +54,20 @@ private:
     bool timeExpired_;
     bool whiteHasCastled_;
     bool blackHasCastled_;
+    int moveCount_;
+    
+    // Performance optimization structures
+    std::unordered_map<std::string, TranspositionEntry> transpositionTable_;
+    Move killerMoves_[64][2]; // [ply][slot] - two killer moves per ply
     
     bool isTimeExpired() const;
     int minimax(const Board& board, Color currentColor, int depth, bool maximizing,
-                int alpha, int beta, const CastlingRights& castling, int moveCount);
-    void orderMoves(std::vector<Move>& moves, const Board& board);
+                int alpha, int beta, const CastlingRights& castling, int moveCount, 
+                int ply, bool allowNullMove);
+    void orderMoves(std::vector<Move>& moves, const Board& board, int ply);
+    void storeKillerMove(const Move& move, int ply);
     CastlingRights updateCastlingRights(const CastlingRights& rights, const Move& move, 
                                        const Board& board);
-    int moveCount_;
 };
 
 } // namespace Chess

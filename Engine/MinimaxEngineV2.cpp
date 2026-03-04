@@ -474,33 +474,25 @@ bool MinimaxEngineV2::isTimeExpired() const {
 }
 
 std::string MinimaxEngineV2::getPositionHash(const Board& board) {
-    std::ostringstream oss;
+    // Optimized compact hash: use single character per square
+    // 0 = empty, 1-6 = white pieces (PNBRQK), 7-12 = black pieces
+    std::string hash;
+    hash.reserve(64);
     
     for (int r = 0; r < 8; r++) {
         for (int c = 0; c < 8; c++) {
             Piece p = board.getPiece(Position(r, c));
             if (p.isEmpty()) {
-                oss << ".";
+                hash += '0';
             } else {
-                char piece_char = '.';
-                switch (p.type) {
-                    case PieceType::PAWN: piece_char = 'p'; break;
-                    case PieceType::KNIGHT: piece_char = 'n'; break;
-                    case PieceType::BISHOP: piece_char = 'b'; break;
-                    case PieceType::ROOK: piece_char = 'r'; break;
-                    case PieceType::QUEEN: piece_char = 'q'; break;
-                    case PieceType::KING: piece_char = 'k'; break;
-                    default: piece_char = '.'; break;
-                }
-                if (p.color == Color::WHITE) {
-                    piece_char = toupper(piece_char);
-                }
-                oss << piece_char;
+                char code = '1' + static_cast<char>(p.type);
+                if (p.color == Color::BLACK) code += 6;
+                hash += code;
             }
         }
     }
     
-    return oss.str();
+    return hash;
 }
 
 CastlingRights MinimaxEngineV2::updateCastlingRights(const CastlingRights& rights, const Move& move, const Board& board) {
@@ -543,9 +535,34 @@ CastlingRights MinimaxEngineV2::updateCastlingRights(const CastlingRights& right
 }
 
 // Order moves to improve alpha-beta pruning efficiency
-// Use MVV-LVA (Most Valuable Victim - Least Valuable Attacker)
-void MinimaxEngineV2::orderMoves(std::vector<Move>& moves, const Board& board) {
-    std::sort(moves.begin(), moves.end(), [](const Move& a, const Move& b) {
+// Use MVV-LVA (Most Valuable Victim - Least Valuable Attacker) + killer moves + castling priority
+void MinimaxEngineV2::orderMoves(std::vector<Move>& moves, const Board& board, int ply) {
+    std::sort(moves.begin(), moves.end(), [this, ply](const Move& a, const Move& b) {
+        // HIGHEST PRIORITY: Castling moves (always prefer castling)
+        if (a.isCastling && !b.isCastling) return true;
+        if (!a.isCastling && b.isCastling) return false;
+        
+        // Check killer moves (moves that caused beta cutoffs at this depth)
+        if (ply < 64) {
+            bool aIsKiller = false;
+            bool bIsKiller = false;
+            
+            // Check if moves match killer moves (compare positions)
+            for (int i = 0; i < 2; i++) {
+                if (killerMoves_[ply][i].from.isValid()) {
+                    if (a.from == killerMoves_[ply][i].from && a.to == killerMoves_[ply][i].to) {
+                        aIsKiller = true;
+                    }
+                    if (b.from == killerMoves_[ply][i].from && b.to == killerMoves_[ply][i].to) {
+                        bIsKiller = true;
+                    }
+                }
+            }
+            
+            if (aIsKiller && !bIsKiller) return true; 
+            if (!aIsKiller && bIsKiller) return false;
+        }
+        
         // Prioritize captures
         bool aIsCapture = !a.captured.isEmpty();
         bool bIsCapture = !b.captured.isEmpty();
@@ -586,25 +603,74 @@ void MinimaxEngineV2::orderMoves(std::vector<Move>& moves, const Board& board) {
         if (a.isPromotion && !b.isPromotion) return true;
         if (!a.isPromotion && b.isPromotion) return false;
         
-        // Prioritize castling in opening
-        if (a.isCastling && !b.isCastling) return true;
-        if (!a.isCastling && b.isCastling) return false;
-        
         return false;
     });
 }
 
+// Store killer moves for move ordering
+void MinimaxEngineV2::storeKillerMove(const Move& move, int ply) {
+    if (ply >= 64) return;
+    
+    // Don't store captures as killer moves (they're already prioritized)
+    if (!move.captured.isEmpty()) return;
+    
+    // If not already stored as first killer
+    if (!(killerMoves_[ply][0].from == move.from && killerMoves_[ply][0].to == move.to)) {
+        // Shift first killer to second slot
+        killerMoves_[ply][1] = killerMoves_[ply][0];
+        // Store new killer in first slot
+        killerMoves_[ply][0] = move;
+    }
+}
+
 int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, bool maximizing,
-                              int alpha, int beta, const CastlingRights& castling, int moveCount) {
+                              int alpha, int beta, const CastlingRights& castling, int moveCount, 
+                              int ply, bool allowNullMove) {
     // Check time limit
     if (isTimeExpired()) {
         timeExpired_ = true;
         return 0;
     }
     
+    // Transposition table lookup
+    std::string posHash = getPositionHash(board);
+    auto it = transpositionTable_.find(posHash);
+    if (it != transpositionTable_.end() && it->second.depth >= depth) {
+        TranspositionEntry& entry = it->second;
+        if (entry.flag == TranspositionEntry::EXACT) {
+            return entry.score;
+        } else if (entry.flag == TranspositionEntry::LOWER_BOUND) {
+            alpha = std::max(alpha, entry.score);
+        } else if (entry.flag == TranspositionEntry::UPPER_BOUND) {
+            beta = std::min(beta, entry.score);
+        }
+        if (alpha >= beta) {
+            return entry.score;
+        }
+    }
+    
     // Base case: reached depth limit
     if (depth == 0) {
-        return EvaluatorV2::evaluate(board, rootColor_, castling, whiteHasCastled_, blackHasCastled_, moveCount);
+        int eval = EvaluatorV2::evaluate(board, rootColor_, castling, whiteHasCastled_, blackHasCastled_, moveCount);
+        // Store in transposition table
+        TranspositionEntry entry;
+        entry.depth = 0;
+        entry.score = eval;
+        entry.flag = TranspositionEntry::EXACT;
+        transpositionTable_[posHash] = entry;
+        return eval;
+    }
+    
+    bool currentlyInCheck = MoveGenerator::isKingInCheck(board, currentColor);
+    
+    // Null move pruning - skip if in check, at low depth, or not allowed
+    if (!maximizing && depth >= 3 && !currentlyInCheck && allowNullMove && moveCount > 5) {
+        Color nextColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
+        int nullScore = minimax(board, nextColor, depth - 3, true, alpha, beta, castling, moveCount + 1, ply + 1, false);
+        
+        if (nullScore >= beta) {
+            return beta; // Beta cutoff
+        }
     }
     
     // Generate all legal moves
@@ -613,7 +679,7 @@ int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, 
     // If no legal moves, it's checkmate or stalemate
     if (moves.empty()) {
         // Check if in check
-        bool inCheck = MoveGenerator::isKingInCheck(board, currentColor);
+        bool inCheck = currentlyInCheck;
         
         if (inCheck) {
             // Checkmate - very bad if we're being checkmated, very good if opponent is
@@ -625,14 +691,11 @@ int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, 
     }
     
     // Order moves for better alpha-beta pruning
-    orderMoves(moves, board);
+    orderMoves(moves, board, ply);
     
     // Alpha-beta pruning minimax
     if (maximizing) {
         int maxEval = std::numeric_limits<int>::min();
-        
-        // Check if current position is in check
-        bool currentlyInCheck = MoveGenerator::isKingInCheck(board, currentColor);
         
         for (const Move& move : moves) {
             Board newBoard = board.clone();
@@ -658,7 +721,7 @@ int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, 
             blackHasCastled_ = newBlackCastled;
             
             Color nextColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
-            int eval = minimax(newBoard, nextColor, depth - 1, false, alpha, beta, newCastling, moveCount + 1);
+            int eval = minimax(newBoard, nextColor, depth - 1, false, alpha, beta, newCastling, moveCount + 1, ply + 1, true);
             
             // Penalty for unnecessary king moves (not in check, not castling, before move 25)
             if (move.piece.type == PieceType::KING && !move.isCastling && !currentlyInCheck && moveCount < 25) {
@@ -677,23 +740,38 @@ int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, 
             whiteHasCastled_ = oldWhiteCastled;
             blackHasCastled_ = oldBlackCastled;
             
-            maxEval = std::max(maxEval, eval);
+            if (eval > maxEval) {
+                maxEval = eval;
+            }
+            
             alpha = std::max(alpha, eval);
             
             // Beta cutoff
             if (beta <= alpha) {
+                // Store as killer move
+                storeKillerMove(move, ply);
                 break;
             }
             
             if (timeExpired_) break;
         }
         
+        // Store in transposition table
+        TranspositionEntry entry;
+        entry.depth = depth;
+        entry.score = maxEval;
+        if (maxEval <= alpha) {
+            entry.flag = TranspositionEntry::UPPER_BOUND;
+        } else if (maxEval >= beta) {
+            entry.flag = TranspositionEntry::LOWER_BOUND;
+        } else {
+            entry.flag = TranspositionEntry::EXACT;
+        }
+        transpositionTable_[posHash] = entry;
+        
         return maxEval;
     } else {
         int minEval = std::numeric_limits<int>::max();
-        
-        // Check if current position is in check
-        bool currentlyInCheck = MoveGenerator::isKingInCheck(board, currentColor);
         
         for (const Move& move : moves) {
             Board newBoard = board.clone();
@@ -719,7 +797,7 @@ int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, 
             blackHasCastled_ = newBlackCastled;
             
             Color nextColor = (currentColor == Color::WHITE) ? Color::BLACK : Color::WHITE;
-            int eval = minimax(newBoard, nextColor, depth - 1, true, alpha, beta, newCastling, moveCount + 1);
+            int eval = minimax(newBoard, nextColor, depth - 1, true, alpha, beta, newCastling, moveCount + 1, ply + 1, true);
             
             // Penalty for unnecessary king moves (not in check, not castling, before move 25)
             if (move.piece.type == PieceType::KING && !move.isCastling && !currentlyInCheck && moveCount < 25) {
@@ -738,16 +816,34 @@ int MinimaxEngineV2::minimax(const Board& board, Color currentColor, int depth, 
             whiteHasCastled_ = oldWhiteCastled;
             blackHasCastled_ = oldBlackCastled;
             
-            minEval = std::min(minEval, eval);
+            if (eval < minEval) {
+                minEval = eval;
+            }
+            
             beta = std::min(beta, eval);
             
             // Alpha cutoff
             if (beta <= alpha) {
+                // Store as killer move
+                storeKillerMove(move, ply);
                 break;
             }
             
             if (timeExpired_) break;
         }
+        
+        // Store in transposition table
+        TranspositionEntry entry;
+        entry.depth = depth;
+        entry.score = minEval;
+        if (minEval <= alpha) {
+            entry.flag = TranspositionEntry::LOWER_BOUND;
+        } else if (minEval >= beta) {
+            entry.flag = TranspositionEntry::UPPER_BOUND;
+        } else {
+            entry.flag = TranspositionEntry::EXACT;
+        }
+        transpositionTable_[posHash] = entry;
         
         return minEval;
     }
@@ -763,14 +859,32 @@ Move MinimaxEngineV2::findBestMove(const Board& board, Color color, const Castli
     whiteHasCastled_ = whiteHasCastled;
     blackHasCastled_ = blackHasCastled;
     
+    // Clear transposition table for new search
+    transpositionTable_.clear();
+    
+    // Initialize killer moves  
+    for (int i = 0; i < 64; i++) {
+        killerMoves_[i][0] = Move();
+        killerMoves_[i][1] = Move();
+    }
+    
     std::vector<Move> moves = MoveGenerator::generateMoves(board, color, castling);
     
     if (moves.empty()) {
         return Move(); // No legal moves
     }
     
+    // Check if we have a castling move available
+    bool castlingAvailable = false;
+    for (const Move& move : moves) {
+        if (move.isCastling) {
+            castlingAvailable = true;
+            break;
+        }
+    }
+    
     // Order moves at root for better search
-    orderMoves(moves, board);
+    orderMoves(moves, board, 0);
     
     Move bestMove = moves[0];
     int bestScore = std::numeric_limits<int>::min();
@@ -829,13 +943,21 @@ Move MinimaxEngineV2::findBestMove(const Board& board, Color color, const Castli
             blackHasCastled_ = newBlackCastled;
             
             Color nextColor = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
-            int score = minimax(newBoard, nextColor, currentDepth - 1, false, alpha, beta, newCastling, 1);
+            int score = minimax(newBoard, nextColor, currentDepth - 1, false, alpha, beta, newCastling, 1, 1, true);
+            
+            // HUGE bonus for castling moves - always prefer castling
+            if (move.isCastling) {
+                score += 200; // Massive bonus for castling
+            }
             
             // Penalty for unnecessary king moves at root (not in check, not castling)
             // Only apply in early/mid game (approximated by position history size)
             if (move.piece.type == PieceType::KING && !move.isCastling && !inCheck && 
                 positionHistory.size() < 25) {
-                if (!whiteHasCastled && color == Color::WHITE) {
+                // If castling is available, make king moves extremely bad
+                if (castlingAvailable && !whiteHasCastled && !blackHasCastled) {
+                    score -= 300; // Extremely heavy penalty if castling is an option
+                } else if (!whiteHasCastled && color == Color::WHITE) {
                     // Heavy penalty for moving king before castling when not in check
                     score -= 60;
                 } else if (!blackHasCastled && color == Color::BLACK) {
