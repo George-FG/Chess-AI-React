@@ -158,7 +158,10 @@ self.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
       if (!engineInstance) {
         engineInstance = new module.ChessEngine(3); // Default depth
       }
+      
+      // Fully reset the engine for a new game
       engineInstance.clearHistory();
+      engineInstance.initializeStandardPosition();
       
       const response: WorkerResponse = {
         id: request.id,

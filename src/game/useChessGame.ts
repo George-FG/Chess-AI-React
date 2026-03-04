@@ -439,12 +439,16 @@ export const useChessGame = (options: GameOptions) => {
     });
   }, [gameStarted, makeMove, historyIndex]);
 
-  const resetGame = useCallback(() => {
-    // Clear position history in the engine
-    clearEngineHistory().catch(err => {
+  const resetGame = useCallback(async () => {
+    // Clear position history in the engine and wait for it to complete
+    try {
+      await clearEngineHistory();
+      console.log('✓ Engine history cleared');
+    } catch (err) {
       console.error('Failed to clear engine history:', err);
-    });
+    }
     
+    // Reset game state
     setGameState({
       board: createInitialBoard(),
       currentPlayer: 'white',
@@ -463,7 +467,13 @@ export const useChessGame = (options: GameOptions) => {
       whiteScore: 0,
       blackScore: 0,
     });
-  }, []);
+    
+    // Reset timers
+    setWhiteTime((options.initialTime ?? 300) * 1000);
+    setBlackTime((options.initialTime ?? 300) * 1000);
+    setGameStarted(false);
+    setHistoryIndex(-1);
+  }, [options.initialTime]);
   const isValidMove = useCallback((position: Position): boolean => {
     return gameState.validMoves.some(move => isPositionEqual(move, position));
   }, [gameState.validMoves]);

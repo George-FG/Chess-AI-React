@@ -36,40 +36,46 @@ function getWorker(): Worker {
         return;
       }
       
-      // Handle move response
+      // Handle response (move or clearHistory)
       const pending = pendingRequests.get(response.id);
       if (!pending) return;
       
       pendingRequests.delete(response.id);
       
-      if (response.success && response.move) {
-        console.log('✓ Move received from worker:', response.move);
-        // Convert the result to our Move type
-        const move: Move = {
-          from: {
-            row: response.move.from.row,
-            col: response.move.from.col
-          },
-          to: {
-            row: response.move.to.row,
-            col: response.move.to.col
-          },
-          piece: {
-            type: response.move.piece.type as PieceType,
-            color: response.move.piece.color as PieceColor
-          },
-          captured: response.move.captured ? {
-            type: response.move.captured.type as PieceType,
-            color: response.move.captured.color as PieceColor
-          } : undefined,
-          promotion: response.move.promotion ? response.move.promotion as PieceType : undefined,
-          isCastling: response.move.isCastling,
-          isEnPassant: response.move.isEnPassant
-        };
-        pending.resolve(move);
+      if (response.success) {
+        if (response.move) {
+          // Handle move response
+          console.log('✓ Move received from worker:', response.move);
+          // Convert the result to our Move type
+          const move: Move = {
+            from: {
+              row: response.move.from.row,
+              col: response.move.from.col
+            },
+            to: {
+              row: response.move.to.row,
+              col: response.move.to.col
+            },
+            piece: {
+              type: response.move.piece.type as PieceType,
+              color: response.move.piece.color as PieceColor
+            },
+            captured: response.move.captured ? {
+              type: response.move.captured.type as PieceType,
+              color: response.move.captured.color as PieceColor
+            } : undefined,
+            promotion: response.move.promotion ? response.move.promotion as PieceType : undefined,
+            isCastling: response.move.isCastling,
+            isEnPassant: response.move.isEnPassant
+          };
+          pending.resolve(move);
+        } else {
+          // Handle clearHistory response (no move data)
+          pending.resolve(null);
+        }
       } else {
-        console.error('✗ Move failed from worker:', response.error);
-        pending.reject(new Error(response.error || 'Failed to find best move'));
+        console.error('✗ Request failed from worker:', response.error);
+        pending.reject(new Error(response.error || 'Request failed'));
       }
     });
     
@@ -217,23 +223,20 @@ export async function clearEngineHistory(): Promise<void> {
     
     const promise = new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
+        pendingRequests.delete(requestId);
         reject(new Error('Clear history timeout'));
       }, 5000);
       
-      const handler = (event: MessageEvent) => {
-        const response = event.data;
-        if (response.id === requestId) {
+      pendingRequests.set(requestId, {
+        resolve: () => {
           clearTimeout(timeout);
-          worker.removeEventListener('message', handler);
-          if (response.success) {
-            resolve();
-          } else {
-            reject(new Error(response.error || 'Failed to clear history'));
-          }
+          resolve();
+        },
+        reject: (error) => {
+          clearTimeout(timeout);
+          reject(error);
         }
-      };
-      
-      worker.addEventListener('message', handler);
+      });
     });
     
     worker.postMessage({
@@ -244,5 +247,6 @@ export async function clearEngineHistory(): Promise<void> {
     await promise;
   } catch (error) {
     console.error('Error clearing engine history:', error);
+    throw error;
   }
 }

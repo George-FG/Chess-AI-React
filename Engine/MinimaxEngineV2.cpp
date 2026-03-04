@@ -594,61 +594,79 @@ Move MinimaxEngineV2::findBestMove(const Board& board, Color color, const Castli
     
     Move bestMove = moves[0];
     int bestScore = std::numeric_limits<int>::min();
-    int alpha = std::numeric_limits<int>::min();
-    int beta = std::numeric_limits<int>::max();
     
-    for (const Move& move : moves) {
-        Board newBoard = board.clone();
-        newBoard.applyMove(move);
+    // Iterative deepening: search depth 1, 2, 3, ... up to depth_
+    // This ensures we always have a move even if time expires
+    for (int currentDepth = 1; currentDepth <= depth_; currentDepth++) {
+        if (isTimeExpired()) break;
         
-        // Check for threefold repetition
-        std::string posHash = getPositionHash(newBoard);
-        int repetitions = 0;
-        for (const std::string& oldPos : positionHistory) {
-            if (oldPos == posHash) {
-                repetitions++;
+        int alpha = std::numeric_limits<int>::min();
+        int beta = std::numeric_limits<int>::max();
+        Move depthBestMove = bestMove; // Keep track of best at this depth
+        int depthBestScore = std::numeric_limits<int>::min();
+        
+        for (const Move& move : moves) {
+            if (isTimeExpired()) break;
+            
+            Board newBoard = board.clone();
+            newBoard.applyMove(move);
+            
+            // Check for threefold repetition
+            std::string posHash = getPositionHash(newBoard);
+            int repetitions = 0;
+            for (const std::string& oldPos : positionHistory) {
+                if (oldPos == posHash) {
+                    repetitions++;
+                }
             }
-        }
-        
-        // Avoid repetition if not losing badly
-        if (repetitions >= 2) {
-            continue;
-        }
-        
-        CastlingRights newCastling = updateCastlingRights(castling, move, board);
-        
-        // Track if castling occurred
-        bool newWhiteCastled = whiteHasCastled_;
-        bool newBlackCastled = blackHasCastled_;
-        if (move.isCastling) {
-            if (color == Color::WHITE) {
-                newWhiteCastled = true;
-            } else {
-                newBlackCastled = true;
+            
+            // Avoid repetition if not losing badly
+            if (repetitions >= 2) {
+                continue;
             }
+            
+            CastlingRights newCastling = updateCastlingRights(castling, move, board);
+            
+            // Track if castling occurred
+            bool newWhiteCastled = whiteHasCastled_;
+            bool newBlackCastled = blackHasCastled_;
+            if (move.isCastling) {
+                if (color == Color::WHITE) {
+                    newWhiteCastled = true;
+                } else {
+                    newBlackCastled = true;
+                }
+            }
+            
+            // Temporarily update castling status for evaluation
+            bool oldWhiteCastled = whiteHasCastled_;
+            bool oldBlackCastled = blackHasCastled_;
+            whiteHasCastled_ = newWhiteCastled;
+            blackHasCastled_ = newBlackCastled;
+            
+            Color nextColor = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
+            int score = minimax(newBoard, nextColor, currentDepth - 1, false, alpha, beta, newCastling, 1);
+            
+            // Restore castling status
+            whiteHasCastled_ = oldWhiteCastled;
+            blackHasCastled_ = oldBlackCastled;
+            
+            if (score > depthBestScore) {
+                depthBestScore = score;
+                depthBestMove = move;
+            }
+            
+            alpha = std::max(alpha, score);
         }
         
-        // Temporarily update castling status for evaluation
-        bool oldWhiteCastled = whiteHasCastled_;
-        bool oldBlackCastled = blackHasCastled_;
-        whiteHasCastled_ = newWhiteCastled;
-        blackHasCastled_ = newBlackCastled;
-        
-        Color nextColor = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
-        int score = minimax(newBoard, nextColor, depth_ - 1, false, alpha, beta, newCastling, 1);
-        
-        // Restore castling status
-        whiteHasCastled_ = oldWhiteCastled;
-        blackHasCastled_ = oldBlackCastled;
-        
-        if (score > bestScore) {
-            bestScore = score;
-            bestMove = move;
+        // Update best move only if we completed this depth
+        if (!isTimeExpired()) {
+            bestMove = depthBestMove;
+            bestScore = depthBestScore;
         }
         
-        alpha = std::max(alpha, score);
-        
-        if (timeExpired_) break;
+        // Early exit if mate found
+        if (bestScore > 450000) break;
     }
     
     return bestMove;
